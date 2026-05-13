@@ -64,16 +64,12 @@ button {
 
 .upload-box {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  justify-content: center;
   align-items: center;
-  min-height: 220px;
+  gap: 12px;
+  padding: 12px 16px;
   border: 2px dashed #cbd5e1;
   border-radius: 16px;
-  color: #334155;
   background: #f8fafc;
-  text-align: center;
 }
 
 .file-input {
@@ -105,43 +101,155 @@ button {
   border-radius: 12px;
 }
 
-.chart-placeholder {
-  min-height: 320px;
-  background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  color: #475569;
-}
 
-.metric-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.activity-section {
+.lap-details {
   margin-top: 24px;
 }
 
-.metric-card {
+.table-scroll {
+  overflow-x: auto;
+}
+
+.lap-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 0.85rem;
+}
+
+.lap-table th,
+.lap-table td {
+  text-align: right;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.lap-table th:first-child,
+.lap-table td:first-child {
+  text-align: left;
+}
+
+.lap-table th {
   background: #f8fafc;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.col-unit {
+  font-size: 0.75em;
+  font-weight: 400;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+.lap-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.lap-table td {
+  color: #475569;
+}
+
+@media (max-width: 880px) {
+  .lap-table th,
+  .lap-table td {
+    padding: 6px 8px;
+  }
+}
+
+.activity-section {
+  margin-top: 16px;
+}
+
+/* Chart */
+
+.chart-section {
+  margin-bottom: 8px;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 300px;
+  background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
-  padding: 16px;
+  overflow: hidden;
+  user-select: none;
 }
 
-.metric-card dt {
-  font-size: 0.875rem;
+/* SVG paths/rects inside recharts are not interactive — pointer events fall
+   through to the recharts-wrapper div, so hover/active-dot tracking still works */
+.chart-wrapper svg {
+  pointer-events: none;
+}
+
+.chart-wrapper *:focus {
+  outline: none;
+}
+
+.series-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.series-toggle {
+  font-size: 0.78rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
   color: #64748b;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
-.metric-card dd {
-  margin: 8px 0 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+.series-toggle--active.series-toggle--elevation {
+  background: #f0ece8;
+  border-color: #b0a098;
+  color: #6b5040;
+}
+
+.series-toggle--active.series-toggle--pace {
+  background: #ede9fe;
+  border-color: #a78bfa;
+  color: #4f46e5;
+}
+
+.series-toggle--active.series-toggle--heart-rate {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.series-toggle--active.series-toggle--power {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.series-toggle--active.series-toggle--cadence {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.file-meta {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.file-meta-sep {
+  color: #cbd5e1;
 }
 
 .file-actions {

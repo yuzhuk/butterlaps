@@ -9,6 +9,8 @@ export type FitSummary = {
   hasHeartRate: boolean;
   hasPower: boolean;
   hasCadence: boolean;
+  activityType: string;
+  startTime: number | null;
 };
 
 export type FitActivity = {
@@ -17,6 +19,7 @@ export type FitActivity = {
   markers: Marker[];
   series: Array<{
     name: string;
-    values: Array<{ timeOffsetSeconds: number; value: number }>; 
+    values: Array<{ timeOffsetSeconds: number; value: number }>;
   }>;
+  rawFitPayload: ArrayBuffer;
 };

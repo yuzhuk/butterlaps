@@ -1,13 +1,16 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { version } from '../package.json';
+import { parseFitFile } from './fit/fitParser';
+import { ChartPanel } from './components/ChartPanel';
+import type { FitActivity } from './types';
 
 function formatDuration(seconds: number) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return [hours, minutes, secs]
-    .map((value) => String(value).padStart(2, '0'))
-    .join(':');
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(secs).padStart(2, '0');
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`;
 }
 
 function formatFileSize(bytes: number): string {
@@ -18,6 +21,14 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / 1024).toFixed(1)} KB`;
   }
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatActivityDate(ms: number): string {
+  const d = new Date(ms);
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function getExportFileName(originalName: string): string {
@@ -31,8 +42,121 @@ function getExportFileName(originalName: string): string {
   return `${baseName}-betterlaps${extension}`;
 }
 
+function getLapIntervals(markers: Array<{ timeOffsetSeconds: number; label: string }>) {
+  return markers
+    .slice(0, -1)
+    .map((marker, index) => {
+      const next = markers[index + 1];
+      return {
+        lapNumber: index + 1,
+        startOffsetSeconds: marker.timeOffsetSeconds,
+        durationSeconds: next.timeOffsetSeconds - marker.timeOffsetSeconds,
+      };
+    })
+    .filter((interval) => interval.durationSeconds > 0);
+}
+
+const SERIES_ORDER = ['Distance', 'Pace', 'Power', 'Heart Rate', 'Cadence'];
+
+const SERIES_UNITS: Record<string, string> = {
+  Distance: 'm',
+  Pace: '/km',
+  Power: 'W',
+  'Heart Rate': 'bpm',
+};
+
+function getSeriesUnit(seriesName: string, activityType: string): string | undefined {
+  if (seriesName === 'Cadence') {
+    return activityType === 'running' ? 'spm' : 'rpm';
+  }
+  return SERIES_UNITS[seriesName];
+}
+
+function getTableSeries(activity: FitActivity) {
+  return activity.series
+    .filter((series) => series.name !== 'Elevation')
+    .sort((a, b) => {
+      const ai = SERIES_ORDER.indexOf(a.name);
+      const bi = SERIES_ORDER.indexOf(b.name);
+      return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+    });
+}
+
+function buildLapRows(activity: FitActivity) {
+  const intervals = getLapIntervals(activity.markers);
+  const seriesList = getTableSeries(activity);
+
+  return intervals.map((interval, index) => ({
+    ...interval,
+    lapNumber: index + 1,
+    values: seriesList.map((series) => {
+      const points = series.values.filter(
+        (point) => point.timeOffsetSeconds >= interval.startOffsetSeconds && point.timeOffsetSeconds < interval.startOffsetSeconds + interval.durationSeconds
+      );
+
+      if (series.name === 'Distance') {
+        const value = points.length > 1 ? points[points.length - 1].value - points[0].value : null;
+        return { name: series.name, value };
+      }
+
+      const average = points.length
+        ? points.reduce((sum, point) => sum + point.value, 0) / points.length
+        : null;
+      return { name: series.name, value: average };
+    }),
+  }));
+}
+
+function getSummaryRow(activity: FitActivity) {
+  const seriesList = getTableSeries(activity);
+  const lapRows = buildLapRows(activity);
+  const totalDuration = lapRows.reduce((sum, row) => sum + row.durationSeconds, 0);
+  const distanceSeries = activity.series.find((series) => series.name === 'Distance');
+  const totalDistance = distanceSeries && distanceSeries.values.length > 1
+    ? distanceSeries.values[distanceSeries.values.length - 1].value - distanceSeries.values[0].value
+    : null;
+
+  return {
+    lapNumber: 'Total / Avg',
+    startOffsetSeconds: 0,
+    durationSeconds: totalDuration,
+    values: seriesList.map((series) => {
+      const allPoints = series.values;
+      if (series.name === 'Distance') {
+        return { name: series.name, value: totalDistance };
+      }
+
+      if (series.name === 'Pace') {
+        const value = totalDistance && totalDistance > 0 ? (totalDuration / totalDistance) * 1000 : null;
+        return { name: series.name, value };
+      }
+
+      const aggregate = allPoints.length
+        ? allPoints.reduce((sum, point) => sum + point.value, 0) / allPoints.length
+        : null;
+      return { name: series.name, value: aggregate };
+    }),
+  };
+}
+
+function formatLapValue(value: number | null, metric?: string) {
+  if (value == null) {
+    return '—';
+  }
+
+  if (metric === 'Pace') {
+    const totalSeconds = Math.round(value);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return String(Math.round(value));
+}
+
 function App() {
   const [file, setFile] = useState<File | null>(null);
+  const [activity, setActivity] = useState<FitActivity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -55,9 +179,12 @@ function App() {
         throw new Error('Only .fit files are supported.');
       }
 
+      const parsedActivity = await parseFitFile(selectedFile);
       setFile(selectedFile);
+      setActivity(parsedActivity);
     } catch (err) {
       setFile(null);
+      setActivity(null);
       setError(err instanceof Error ? err.message : 'Unable to read the uploaded file.');
     } finally {
       setIsLoading(false);
@@ -69,7 +196,9 @@ function App() {
       return;
     }
 
-    const url = URL.createObjectURL(file);
+    const payload = activity?.rawFitPayload ?? file;
+    const blob = payload instanceof File ? payload : new Blob([payload], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = getExportFileName(file.name);
@@ -78,6 +207,8 @@ function App() {
     anchor.remove();
     URL.revokeObjectURL(url);
   };
+
+  const summaryRow = activity ? getSummaryRow(activity) : null;
 
   return (
     <div className="container">
@@ -94,10 +225,6 @@ function App() {
       <div className="grid-layout">
         <section className="panel">
           <div className="upload-box">
-            <div>
-              <p>Choose a FIT file to begin editing.</p>
-              <p>Desktop-first experience with interactive lap marker editing.</p>
-            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -112,23 +239,73 @@ function App() {
 
           {file ? (
             <div className="activity-section">
-              <div className="metric-row">
-                <dl className="metric-card">
-                  <dt>File name</dt>
-                  <dd>{file.name}</dd>
-                </dl>
-                <dl className="metric-card">
-                  <dt>File size</dt>
-                  <dd>{formatFileSize(file.size)}</dd>
-                </dl>
-              </div>
+              <p className="file-meta">
+                {file.name}
+                <span className="file-meta-sep">·</span>
+                {formatFileSize(file.size)}
+                {activity?.summary.startTime != null && (
+                  <>
+                    <span className="file-meta-sep">·</span>
+                    {formatActivityDate(activity.summary.startTime)}
+                  </>
+                )}
+              </p>
 
-              <div className="chart-placeholder">
-                <div>
-                  <strong>File loaded</strong>
-                  <p>This is a placeholder for future FIT parsing and metadata display.</p>
+              {activity && <ChartPanel activity={activity} />}
+
+              {activity ? (
+                <div className="lap-details">
+                  <h2>Lap details</h2>
+                  <div className="table-scroll">
+                    <table className="lap-table">
+                      <thead>
+                        <tr>
+                          <th>Lap</th>
+                          <th>Start</th>
+                          <th>Duration</th>
+                          {getTableSeries(activity).map((series) => (
+                            <th key={series.name}>{series.name}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {buildLapRows(activity).map((row) => (
+                          <tr key={row.lapNumber}>
+                            <td>{row.lapNumber}</td>
+                            <td>{formatDuration(row.startOffsetSeconds)}</td>
+                            <td>{formatDuration(row.durationSeconds)}</td>
+                            {row.values.map((value) => (
+                              <td key={value.name}>
+                                {formatLapValue(value.value, value.name)}
+                                {value.value != null && getSeriesUnit(value.name, activity.summary.activityType) && (
+                                  <span className="col-unit">{getSeriesUnit(value.name, activity.summary.activityType)}</span>
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                      {summaryRow ? (
+                        <tfoot>
+                          <tr>
+                            <td>{summaryRow.lapNumber}</td>
+                            <td>—</td>
+                            <td>{formatDuration(summaryRow.durationSeconds)}</td>
+                            {summaryRow.values.map((value) => (
+                              <td key={value.name}>
+                                {formatLapValue(value.value, value.name)}
+                                {value.value != null && getSeriesUnit(value.name, activity.summary.activityType) && (
+                                  <span className="col-unit">{getSeriesUnit(value.name, activity.summary.activityType)}</span>
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        </tfoot>
+                      ) : null}
+                    </table>
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="file-actions">
                 <button type="button" onClick={handleExport}>Export same FIT file</button>
