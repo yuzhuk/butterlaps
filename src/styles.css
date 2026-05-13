@@ -179,14 +179,27 @@ button {
   user-select: none;
 }
 
-/* SVG paths/rects inside recharts are not interactive — pointer events fall
-   through to the recharts-wrapper div, so hover/active-dot tracking still works */
-.chart-wrapper svg {
+/* Only the recharts SVG is inert — our overlay SVG still receives pointer events */
+.chart-wrapper .recharts-surface {
   pointer-events: none;
 }
 
 .chart-wrapper *:focus {
   outline: none;
+}
+
+.chart-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.zoom-selection {
+  fill: rgba(99, 102, 241, 0.1);
+  stroke: rgba(99, 102, 241, 0.45);
+  stroke-width: 1;
 }
 
 .series-toggles {

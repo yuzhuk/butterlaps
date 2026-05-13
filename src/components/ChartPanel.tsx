@@ -1,8 +1,12 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
-import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea } from 'recharts';
 import type { FitActivity } from '../types';
+import { ChartZoomOverlay } from './ChartZoomOverlay';
 
 const CHART_MARGIN = { top: 5, right: 10, bottom: 35, left: 10 } as const;
+const CHART_HEIGHT = 300;
+const PLOT_HEIGHT = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom;
+const ZOOM_PADDING = 0.10;
 
 const PRIMARY_SERIES = ['Pace', 'Power', 'Heart Rate', 'Cadence'] as const;
 
@@ -20,10 +24,23 @@ const SERIES_YAXIS: Record<string, string> = {
   Cadence: 'cadence',
 };
 
-function formatXTick(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
+function computeTicks(start: number, end: number): number[] {
+  const NICE = [5, 10, 15, 20, 30, 60, 120, 180, 300, 600, 900, 1800, 3600];
+  const interval = NICE.find((i) => i >= (end - start) / 6) ?? 3600;
+  const ticks: number[] = [start];
+  const first = Math.ceil(start / interval) * interval;
+  for (let t = first; t < end; t += interval) {
+    if (t > start) ticks.push(t);
+  }
+  if (ticks[ticks.length - 1] !== end) ticks.push(end);
+  return ticks;
+}
+
+function formatXTick(raw: number): string {
+  const t = Math.round(raw);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = t % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}`;
   if (s === 0) return `${m}:00`;
   return `${m}:${String(s).padStart(2, '0')}`;
@@ -36,6 +53,8 @@ interface Props {
 export function ChartPanel({ activity }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+
+  const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
     const defaults = new Set<string>();
@@ -55,7 +74,17 @@ export function ChartPanel({ activity }: Props) {
   }, []);
 
   const totalDuration = activity.summary.durationSeconds;
-  const domain: [number, number] = [0, totalDuration];
+
+  const displayDomain = useMemo((): [number, number] => {
+    if (!zoom) return [0, totalDuration];
+    const pad = Math.round((zoom.end - zoom.start) * ZOOM_PADDING);
+    return [Math.max(0, zoom.start - pad), Math.min(totalDuration, zoom.end + pad)];
+  }, [zoom, totalDuration]);
+
+  const handleZoom = useCallback((start: number, end: number) => setZoom({ start, end }), []);
+  const handleZoomReset = useCallback(() => setZoom(null), []);
+
+  const ticks = useMemo(() => computeTicks(displayDomain[0], displayDomain[1]), [displayDomain]);
 
   const availablePrimary = useMemo(
     () => PRIMARY_SERIES.filter((name) => activity.series.some((s) => s.name === name)),
@@ -113,14 +142,21 @@ export function ChartPanel({ activity }: Props) {
             <XAxis
               type="number"
               dataKey="timeOffsetSeconds"
-              domain={domain}
+              domain={displayDomain}
               allowDataOverflow
               tickFormatter={formatXTick}
-              tickCount={8}
+              ticks={ticks}
               tick={{ fontSize: 11, fill: '#94a3b8' }}
               axisLine={{ stroke: '#e2e8f0' }}
               tickLine={{ stroke: '#e2e8f0' }}
             />
+
+            {zoom && displayDomain[0] < zoom.start && (
+              <ReferenceArea x1={displayDomain[0]} x2={zoom.start} yAxisId="elev" fill="rgb(203,213,225)" fillOpacity={0.55} strokeOpacity={0} />
+            )}
+            {zoom && zoom.end < displayDomain[1] && (
+              <ReferenceArea x1={zoom.end} x2={displayDomain[1]} yAxisId="elev" fill="rgb(203,213,225)" fillOpacity={0.55} strokeOpacity={0} />
+            )}
 
             <YAxis yAxisId="elev" hide domain={['dataMin - 10', 'dataMax + 30']} />
             <YAxis yAxisId="pace" hide reversed domain={['auto', 'auto']} />
@@ -164,6 +200,18 @@ export function ChartPanel({ activity }: Props) {
               })}
           </ComposedChart>
         </ResponsiveContainer>
+
+        {containerWidth > 0 && (
+          <ChartZoomOverlay
+            plotWidth={Math.max(0, containerWidth - CHART_MARGIN.left - CHART_MARGIN.right)}
+            plotHeight={PLOT_HEIGHT}
+            marginLeft={CHART_MARGIN.left}
+            marginTop={CHART_MARGIN.top}
+            domain={displayDomain}
+            onZoom={handleZoom}
+            onZoomReset={handleZoomReset}
+          />
+        )}
       </div>
     </div>
   );

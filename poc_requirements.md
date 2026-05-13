@@ -173,8 +173,15 @@ This simplifies:
 
 ## X-Axis
 
-Initial:
-- elapsed time
+- elapsed time (mm:ss or h:mm, always rounded to whole seconds)
+- first tick anchored at the left edge of the visible range, last tick at the right edge
+- nice round intervals between them (5s, 10s, 30s, 1m, 5m, etc.)
+
+## Interaction
+
+- chart area is inert to clicks: no text selection, no focus rings on SVG elements
+- hovering shows active dots that slide along each visible series (kept)
+- no tooltip popup, no vertical cursor line
 
 ---
 
@@ -183,26 +190,31 @@ Initial:
 ## Background Series
 
 ### Elevation
-- subtle filled background
+- subtle filled area in warm gray (visually distinct from data series)
 - toggleable (default ON)
 
 ---
 
 ## Toggleable Primary Series
 
-- pace (default ON)
-- heart rate
-- power
-- cadence
+Toggle order (left to right):
+1. pace (default ON)
+2. power
+3. heart rate
+4. cadence
+
+Each series auto-scales on its own independent axis.
 
 ---
 
 # Zooming
 
-Required.
-
-- click-drag zoom
-- single-click reset zoom
+- click-drag to zoom in; single-click anywhere to reset to full view
+- when zoomed, the view includes ~10% padding beyond the selected range on each side
+- padding areas are shown with a subtle gray veil so the user can tell where the selection boundary is
+- the user can start a new drag from within a veil to re-zoom slightly wider without resetting first
+- minimum zoom window: 10 seconds
+- zoom boundaries snap to whole seconds
 
 ---
 
