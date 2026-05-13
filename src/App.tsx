@@ -159,6 +159,7 @@ function App() {
   const [activity, setActivity] = useState<FitActivity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const openFilePicker = () => {
@@ -182,9 +183,11 @@ function App() {
       const parsedActivity = await parseFitFile(selectedFile);
       setFile(selectedFile);
       setActivity(parsedActivity);
+      setZoom(null);
     } catch (err) {
       setFile(null);
       setActivity(null);
+      setZoom(null);
       setError(err instanceof Error ? err.message : 'Unable to read the uploaded file.');
     } finally {
       setIsLoading(false);
@@ -222,38 +225,42 @@ function App() {
         </p>
       </header>
 
-      <div className="grid-layout">
-        <section className="panel">
-          <div className="upload-box">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".fit"
-              onChange={handleFileChange}
-              className="file-input"
-            />
-            <button type="button" onClick={openFilePicker}>Upload FIT file</button>
-          </div>
-          {error ? <div className="alert">{error}</div> : null}
-          {isLoading ? <p>Loading file…</p> : null}
+      <section className="panel">
+        <div className="upload-box">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".fit"
+            onChange={handleFileChange}
+            className="file-input"
+          />
+          <button type="button" onClick={openFilePicker}>Upload FIT file</button>
+        </div>
+        {error ? <div className="alert">{error}</div> : null}
+        {isLoading ? <p>Loading file…</p> : null}
 
-          {file ? (
-            <div className="activity-section">
-              <p className="file-meta">
-                {file.name}
-                <span className="file-meta-sep">·</span>
-                {formatFileSize(file.size)}
-                {activity?.summary.startTime != null && (
-                  <>
-                    <span className="file-meta-sep">·</span>
-                    {formatActivityDate(activity.summary.startTime)}
-                  </>
-                )}
-              </p>
+        {file && (
+          <div className="activity-section">
+            <p className="file-meta">
+              {file.name}
+              <span className="file-meta-sep">·</span>
+              {formatFileSize(file.size)}
+              {activity?.summary.startTime != null && (
+                <>
+                  <span className="file-meta-sep">·</span>
+                  {formatActivityDate(activity.summary.startTime)}
+                </>
+              )}
+            </p>
 
-              {activity && <ChartPanel activity={activity} />}
-
-              {activity ? (
+            {activity && (
+              <div className="activity-layout">
+                <ChartPanel
+                  activity={activity}
+                  zoom={zoom}
+                  onZoom={(start, end) => setZoom({ start, end })}
+                  onZoomReset={() => setZoom(null)}
+                />
                 <div className="lap-details">
                   <h2>Lap details</h2>
                   <div className="table-scroll">
@@ -270,7 +277,10 @@ function App() {
                       </thead>
                       <tbody>
                         {buildLapRows(activity).map((row) => (
-                          <tr key={row.lapNumber}>
+                          <tr
+                            key={row.lapNumber}
+                            onClick={() => setZoom({ start: row.startOffsetSeconds, end: row.startOffsetSeconds + row.durationSeconds })}
+                          >
                             <td>{row.lapNumber}</td>
                             <td>{formatDuration(row.startOffsetSeconds)}</td>
                             <td>{formatDuration(row.durationSeconds)}</td>
@@ -287,9 +297,8 @@ function App() {
                       </tbody>
                       {summaryRow ? (
                         <tfoot>
-                          <tr>
-                            <td>{summaryRow.lapNumber}</td>
-                            <td>—</td>
+                          <tr onClick={() => setZoom(null)}>
+                            <td colSpan={2}>{summaryRow.lapNumber}</td>
                             <td>{formatDuration(summaryRow.durationSeconds)}</td>
                             {summaryRow.values.map((value) => (
                               <td key={value.name}>
@@ -305,16 +314,12 @@ function App() {
                     </table>
                   </div>
                 </div>
-              ) : null}
-
-              <div className="file-actions">
-                <button type="button" onClick={handleExport}>Export same FIT file</button>
               </div>
-            </div>
-          ) : null}
-        </section>
+            )}
+          </div>
+        )}
 
-        <aside className="panel">
+        <div className="summary-section">
           <h2>File summary</h2>
           {file ? (
             <div className="lap-list">
@@ -326,8 +331,13 @@ function App() {
           ) : (
             <p>Upload a FIT file to see basic information and enable export.</p>
           )}
-        </aside>
-      </div>
+          {file && (
+            <div className="file-actions">
+              <button type="button" onClick={handleExport}>Export same FIT file</button>
+            </div>
+          )}
+        </div>
+      </section>
       <div className="version">v{version}</div>
     </div>
   );

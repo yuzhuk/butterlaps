@@ -1,11 +1,12 @@
-import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea } from 'recharts';
+import { useRef, useState, useEffect, useMemo } from 'react';
+import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
 import type { FitActivity } from '../types';
-import { ChartZoomOverlay } from './ChartZoomOverlay';
+import { ChartZoomOverlay, type HoverSeriesInfo } from './ChartZoomOverlay';
 
-const CHART_MARGIN = { top: 5, right: 10, bottom: 35, left: 10 } as const;
+const CHART_MARGIN = { top: 18, right: 10, bottom: 24, left: 10 } as const;
 const CHART_HEIGHT = 300;
-const PLOT_HEIGHT = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom;
+const XAXIS_HEIGHT = 24;
+const PLOT_HEIGHT = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom - XAXIS_HEIGHT;
 const ZOOM_PADDING = 0.10;
 
 const PRIMARY_SERIES = ['Pace', 'Power', 'Heart Rate', 'Cadence'] as const;
@@ -16,6 +17,17 @@ const SERIES_COLORS: Record<string, string> = {
   Power: '#f59e0b',
   Cadence: '#10b981',
 };
+
+const SERIES_UNITS: Record<string, string> = {
+  Pace: '/km',
+  Power: 'W',
+  'Heart Rate': 'bpm',
+};
+
+function getUnit(name: string, activityType: string): string {
+  if (name === 'Cadence') return activityType === 'running' ? 'spm' : 'rpm';
+  return SERIES_UNITS[name] ?? '';
+}
 
 const SERIES_YAXIS: Record<string, string> = {
   Pace: 'pace',
@@ -41,20 +53,22 @@ function formatXTick(raw: number): string {
   const h = Math.floor(t / 3600);
   const m = Math.floor((t % 3600) / 60);
   const s = t % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}`;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
   if (s === 0) return `${m}:00`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 interface Props {
   activity: FitActivity;
+  zoom: { start: number; end: number } | null;
+  onZoom: (start: number, end: number) => void;
+  onZoomReset: () => void;
 }
 
-export function ChartPanel({ activity }: Props) {
+export function ChartPanel({ activity, zoom, onZoom, onZoomReset }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-
-  const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
     const defaults = new Set<string>();
@@ -81,9 +95,6 @@ export function ChartPanel({ activity }: Props) {
     return [Math.max(0, zoom.start - pad), Math.min(totalDuration, zoom.end + pad)];
   }, [zoom, totalDuration]);
 
-  const handleZoom = useCallback((start: number, end: number) => setZoom({ start, end }), []);
-  const handleZoomReset = useCallback(() => setZoom(null), []);
-
   const ticks = useMemo(() => computeTicks(displayDomain[0], displayDomain[1]), [displayDomain]);
 
   const availablePrimary = useMemo(
@@ -92,6 +103,33 @@ export function ChartPanel({ activity }: Props) {
   );
 
   const elevationSeries = activity.series.find((s) => s.name === 'Elevation');
+
+  const minElevation = useMemo(() => {
+    if (!elevationSeries || !elevationSeries.values.length) return 0;
+    return elevationSeries.values.reduce((min, v) => Math.min(min, v.value), Infinity);
+  }, [elevationSeries]);
+
+  const hoverSeriesData = useMemo((): HoverSeriesInfo[] => {
+    const result: HoverSeriesInfo[] = [];
+
+    for (const name of availablePrimary) {
+      if (!activeSeries.has(name)) continue;
+      const s = activity.series.find((ser) => ser.name === name);
+      if (!s || !s.values.length) continue;
+      result.push({
+        name,
+        color: SERIES_COLORS[name],
+        unit: getUnit(name, activity.summary.activityType),
+        values: s.values,
+      });
+    }
+
+    if (activeSeries.has('Elevation') && elevationSeries) {
+      result.push({ name: 'Elevation', color: '#b0a098', unit: 'm', values: elevationSeries.values });
+    }
+
+    return result;
+  }, [availablePrimary, activeSeries, activity, elevationSeries]);
 
   const toggleSeries = (name: string) => {
     setActiveSeries((prev) => {
@@ -131,8 +169,8 @@ export function ChartPanel({ activity }: Props) {
           <ComposedChart margin={CHART_MARGIN}>
             <defs>
               <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#c8bdb4" stopOpacity={0.55} />
-                <stop offset="100%" stopColor="#c8bdb4" stopOpacity={0} />
+                <stop offset="0%" stopColor="#c8bdb4" stopOpacity={0.8} />
+                <stop offset="100%" stopColor="#c8bdb4" stopOpacity={0.15} />
               </linearGradient>
             </defs>
 
@@ -144,6 +182,7 @@ export function ChartPanel({ activity }: Props) {
               dataKey="timeOffsetSeconds"
               domain={displayDomain}
               allowDataOverflow
+              height={XAXIS_HEIGHT}
               tickFormatter={formatXTick}
               ticks={ticks}
               tick={{ fontSize: 11, fill: '#94a3b8' }}
@@ -170,6 +209,7 @@ export function ChartPanel({ activity }: Props) {
                 dataKey="value"
                 xAxisId={0}
                 yAxisId="elev"
+                baseValue={minElevation - 10}
                 fill="url(#elevGradient)"
                 stroke="#b0a098"
                 activeDot={false}
@@ -178,6 +218,16 @@ export function ChartPanel({ activity }: Props) {
                 isAnimationActive={false}
               />
             )}
+
+            {activity.markers.map((marker) => (
+              <ReferenceLine
+                key={marker.timeOffsetSeconds}
+                x={marker.timeOffsetSeconds}
+                yAxisId="elev"
+                stroke="#64748b"
+                strokeWidth={0.75}
+              />
+            ))}
 
             {availablePrimary
               .filter((name) => activeSeries.has(name))
@@ -208,8 +258,9 @@ export function ChartPanel({ activity }: Props) {
             marginLeft={CHART_MARGIN.left}
             marginTop={CHART_MARGIN.top}
             domain={displayDomain}
-            onZoom={handleZoom}
-            onZoomReset={handleZoomReset}
+            onZoom={onZoom}
+            onZoomReset={onZoomReset}
+            hoverSeries={hoverSeriesData}
           />
         )}
       </div>

@@ -42,17 +42,6 @@ button {
   line-height: 1.6;
 }
 
-.grid-layout {
-  display: grid;
-  gap: 24px;
-}
-
-@media (min-width: 960px) {
-  .grid-layout {
-    grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
-    align-items: start;
-  }
-}
 
 .panel {
   background: #ffffff;
@@ -102,8 +91,31 @@ button {
 }
 
 
+.activity-layout {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (min-width: 960px) {
+  .activity-layout {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+
 .lap-details {
-  margin-top: 24px;
+  margin-top: 0;
+}
+
+.summary-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.summary-section h2 {
+  margin: 0 0 12px;
 }
 
 .table-scroll {
@@ -128,6 +140,7 @@ button {
 .lap-table th:first-child,
 .lap-table td:first-child {
   text-align: left;
+  width: 2.5rem;
 }
 
 .lap-table th {
@@ -146,6 +159,16 @@ button {
 
 .lap-table tbody tr:nth-child(even) {
   background: #f8fafc;
+}
+
+.lap-table tbody tr,
+.lap-table tfoot tr {
+  cursor: pointer;
+}
+
+.lap-table tbody tr:hover,
+.lap-table tfoot tr:hover {
+  background: #eff6ff;
 }
 
 .lap-table td {
