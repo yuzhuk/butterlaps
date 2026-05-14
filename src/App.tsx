@@ -397,8 +397,6 @@ function App() {
   const lapRows = activity ? buildLapRows(activity, markers) : [];
   const summaryRow = activity ? getSummaryRow(activity, markers) : null;
   const originalLapCount = activity ? getLapIntervals(activity.markers).length : 0;
-  const hasChanges = activity ? lapRows.length !== originalLapCount : false;
-
   const { removedBoundaries, addedBoundaries } = activity ? (() => {
     const originalStarts = new Set(getLapIntervals(activity.markers).slice(1).map((iv) => iv.startOffsetSeconds));
     const currentStarts = new Set(getLapIntervals(markers).slice(1).map((iv) => iv.startOffsetSeconds));
@@ -407,6 +405,8 @@ function App() {
       addedBoundaries: [...currentStarts].filter((t) => !originalStarts.has(t)),
     };
   })() : { removedBoundaries: [] as number[], addedBoundaries: [] as number[] };
+
+  const hasChanges = removedBoundaries.length > 0 || addedBoundaries.length > 0;
 
   // Activity-level metrics for the inline metric line
   const activityMetrics = activity ? (() => {

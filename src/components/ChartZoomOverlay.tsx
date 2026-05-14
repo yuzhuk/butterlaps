@@ -84,11 +84,19 @@ function fmtValue(value: number, name: string, unit: string): string {
   return `${Math.round(value)} ${unit}`;
 }
 
-function TooltipText({ x, y, children }: { x: number; y: number; children: ReactNode }) {
+const LABEL_HALF_WIDTH_PX = 60;
+
+function tooltipAnchor(px: number, plotWidth: number): 'start' | 'middle' | 'end' {
+  if (px < LABEL_HALF_WIDTH_PX) return 'start';
+  if (px > plotWidth - LABEL_HALF_WIDTH_PX) return 'end';
+  return 'middle';
+}
+
+function TooltipText({ x, y, anchor, children }: { x: number; y: number; anchor?: 'start' | 'middle' | 'end'; children: ReactNode }) {
   return (
     <text
       x={x} y={y}
-      textAnchor="middle"
+      textAnchor={anchor ?? 'middle'}
       fontSize={10}
       fontFamily="inherit"
       style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
@@ -169,7 +177,10 @@ export function ChartZoomOverlay({
           hasMoved: d.hasMoved || Math.abs(plotX - d.startPx) >= DRAG_THRESHOLD_PX,
         };
         dragRef.current = updated;
-        setDrag({ ...updated });
+        if (updated.hasMoved) {
+          if (!d.hasMoved) setHoveredMarkerTime(null);
+          setDrag({ ...updated });
+        }
       }
 
       // Marker drag
@@ -177,16 +188,23 @@ export function ChartZoomOverlay({
       if (md) {
         const dom = domainRef.current;
         const pw = plotWidthRef.current;
-        const currentTime = dom[0] + (plotX / pw) * (dom[1] - dom[0]);
+        const allMarkers = markerTimesRef.current;
+        const idx = allMarkers.indexOf(md.originalTime);
+
+        let currentTime = dom[0] + (plotX / pw) * (dom[1] - dom[0]);
+        if (idx > 0 && currentTime <= allMarkers[idx - 1]) currentTime = allMarkers[idx - 1] + 1;
+        if (idx < allMarkers.length - 1 && currentTime >= allMarkers[idx + 1]) currentTime = allMarkers[idx + 1] - 1;
+        const clampedPx = ((currentTime - dom[0]) / (dom[1] - dom[0])) * pw;
+
         let mergeTarget: number | null = null;
-        for (const t of markerTimesRef.current) {
+        for (const t of allMarkers) {
           if (t === md.originalTime) continue;
           if (Math.abs(currentTime - t) < MERGE_TOLERANCE_SECONDS) { mergeTarget = t; break; }
         }
         const updated: MarkerDragState = {
           ...md,
-          currentPx: plotX,
-          hasMoved: md.hasMoved || Math.abs(plotX - md.originalPx) >= DRAG_THRESHOLD_PX,
+          currentPx: clampedPx,
+          hasMoved: md.hasMoved || Math.abs(clampedPx - md.originalPx) >= DRAG_THRESHOLD_PX,
           mergeTarget,
         };
         markerDragRef.current = updated;
@@ -293,10 +311,8 @@ export function ChartZoomOverlay({
       markerDragRef.current = state;
       setMarkerDrag(state);
     } else {
-      const state: DragState = { startPx: px, currentPx: px, hasMoved: false };
-      dragRef.current = state;
-      setDrag(state);
-      setHoveredMarkerTime(null);
+      // Only capture start position; React state (and visual changes) deferred until threshold crossed
+      dragRef.current = { startPx: px, currentPx: px, hasMoved: false };
     }
   };
 
@@ -435,7 +451,7 @@ export function ChartZoomOverlay({
               stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
               strokeWidth={1.5}
             />
-            <TooltipText x={markerDrag.currentPx} y={-4}>
+            <TooltipText x={markerDrag.currentPx} y={-4} anchor={tooltipAnchor(markerDrag.currentPx, plotWidth)}>
               {fmtTime(dragCurrentTime)}{dragDistanceLabel != null ? ` · ${fmtDistance(dragDistanceLabel.value)}` : ''}
             </TooltipText>
             {dragPrimaryLabels.map((label, i) => (
@@ -458,10 +474,7 @@ export function ChartZoomOverlay({
                 textAnchor={dragLabelOnLeft ? 'end' : 'start'}
                 fontSize={10}
                 fontFamily="inherit"
-                fill={dragElevationLabel.color}
-                stroke="white"
-                strokeWidth={2.5}
-                paintOrder="stroke"
+                style={{ fill: dragElevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
                 {fmtValue(dragElevationLabel.value, dragElevationLabel.name, dragElevationLabel.unit)}
               </text>
@@ -476,7 +489,7 @@ export function ChartZoomOverlay({
               x1={hoverPos.x} y1={0} x2={hoverPos.x} y2={plotHeight}
               stroke="#a8a59a" strokeWidth={0.75} strokeOpacity={0.9}
             />
-            <TooltipText x={hoverPos.x} y={-4}>
+            <TooltipText x={hoverPos.x} y={-4} anchor={tooltipAnchor(hoverPos.x, plotWidth)}>
               {fmtTime(hoverTime!)}{distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : ''}
             </TooltipText>
             {primaryLabels.map((label, i) => (
@@ -499,10 +512,7 @@ export function ChartZoomOverlay({
                 textAnchor={labelOnLeft ? 'end' : 'start'}
                 fontSize={10}
                 fontFamily="inherit"
-                fill={elevationLabel.color}
-                stroke="white"
-                strokeWidth={2.5}
-                paintOrder="stroke"
+                style={{ fill: elevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
                 {fmtValue(elevationLabel.value, elevationLabel.name, elevationLabel.unit)}
               </text>
