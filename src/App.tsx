@@ -37,13 +37,13 @@ function getExportFileName(originalName: string): string {
   const baseName = lastDotIndex > 0 ? originalName.slice(0, lastDotIndex) : originalName;
   const extension = lastDotIndex > 0 ? originalName.slice(lastDotIndex) : '';
 
-  const match = baseName.match(/^(.*-betterlaps)(\d*)$/);
+  const match = baseName.match(/^(.*-butterlaps)(\d*)$/);
   if (match) {
     const n = match[2] === '' ? 1 : parseInt(match[2], 10);
     return `${match[1]}${n + 1}${extension}`;
   }
 
-  return `${baseName}-betterlaps${extension}`;
+  return `${baseName}-butterlaps${extension}`;
 }
 
 function getLapIntervals(markers: Marker[]) {
@@ -264,7 +264,7 @@ function App() {
     <div className="container">
       <header className="page-header">
         <div>
-          <p className="eyebrow">BetterLaps</p>
+          <p className="eyebrow">ButterLaps</p>
           <h1>Edit lap boundaries without damaging FIT data</h1>
         </div>
         <p>

@@ -1,10 +1,10 @@
-# BetterLaps
+# ButterLaps
 
 A lightweight web app for editing lap boundaries inside FIT activity files without damaging original activity data.
 
 ## Overview
 
-This repository is a starter shell for the `BetterLaps` project.
+This repository is a starter shell for the `ButterLaps` project.
 
 ## Getting Started
 

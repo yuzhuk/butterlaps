@@ -3,7 +3,7 @@
 ## Repository layout
 
 ```
-/betterlaps
+/butterlaps
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts

@@ -1,6 +1,6 @@
 # Data Model (Draft)
 
-This document defines the first draft of the core data model for the `BetterLaps` application.
+This document defines the first draft of the core data model for the `ButterLaps` application.
 
 ## Goals
 

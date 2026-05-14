@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-**BetterLaps** — a client-only browser app for editing lap boundaries inside Garmin `.fit` activity files without modifying any other activity data. Users upload a FIT file, visually edit lap markers on an interactive chart, and export a corrected FIT that stays compatible with Garmin/Strava/Stryd/HealthFit.
+**ButterLaps** — a client-only browser app for editing lap boundaries inside Garmin `.fit` activity files without modifying any other activity data. Users upload a FIT file, visually edit lap markers on an interactive chart, and export a corrected FIT that stays compatible with Garmin/Strava/Stryd/HealthFit.
 
 No backend. No accounts. No AI suggestions. Precision editing tool only.
 

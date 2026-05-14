@@ -1,4 +1,4 @@
-# BetterLaps AI Agent Instructions
+# ButterLaps AI Agent Instructions
 
 This repository is a small React + TypeScript browser app for editing lap boundaries inside FIT activity files.
 

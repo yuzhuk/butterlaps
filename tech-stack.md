@@ -1,6 +1,6 @@
 # Technology Stack
 
-This document captures the recommended stack for the `BetterLaps` proof-of-concept application.
+This document captures the recommended stack for the `ButterLaps` proof-of-concept application.
 
 ## Frontend
 

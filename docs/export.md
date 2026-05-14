@@ -17,13 +17,13 @@ Deleted lap messages (DEF + DATA byte pairs) are removed from the byte stream. F
 
 ## Filename
 
-Each export appends or increments a `-betterlaps` suffix:
+Each export appends or increments a `-butterlaps` suffix:
 
 | Input filename               | Output filename                |
 |------------------------------|--------------------------------|
-| `activity.fit`               | `activity-betterlaps.fit`      |
-| `activity-betterlaps.fit`    | `activity-betterlaps2.fit`     |
-| `activity-betterlaps2.fit`   | `activity-betterlaps3.fit`     |
+| `activity.fit`               | `activity-butterlaps.fit`      |
+| `activity-butterlaps.fit`    | `activity-butterlaps2.fit`     |
+| `activity-butterlaps2.fit`   | `activity-butterlaps3.fit`     |
 
 The number increments without limit.
 
