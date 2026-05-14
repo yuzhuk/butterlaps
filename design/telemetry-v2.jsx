@@ -13,7 +13,7 @@
     return {
       paceLine: "#b4a4ff",
       powerLine: "#ffaa48",
-      hrLine: "#ff5a4a",
+      hrLine: "#e03535",
       cadence: "#5fd29a",
       elevStroke: "#7a7d80",
       elevFillTop: "#3a3d40",
@@ -31,7 +31,7 @@
     return {
       paceLine: "#4f3bcc",
       powerLine: "#c5701b",
-      hrLine: "#b8321f",
+      hrLine: "#9e2020",
       cadence: "#2e7a4e",
       elevStroke: "#9d9a90",
       elevFillTop: "#d8d5cb",
@@ -265,7 +265,7 @@
           { className: "table-head__right" },
           React.createElement(
             "button",
-            { type: "button", className: "reset-btn" },
+            { type: "button", className: "btn-danger" },
             "Reset"
           )
         )
@@ -329,7 +329,7 @@
           React.createElement("span", { className: "brand-mark" }, "◐"),
           "BUTTERLAPS"
         ),
-        React.createElement("span", { className: "status-bar__cell status-bar__cell--quiet" }, "VER. ", React.createElement("b", null, "0.1.0.14")),
+        React.createElement("span", { className: "status-bar__cell status-bar__cell--quiet" }, "VER. ", React.createElement("b", null, "0.1.1.0")),
         React.createElement("span", { className: "status-bar__spacer" }),
         React.createElement(
           "button",
@@ -358,16 +358,12 @@
           React.createElement(
             "h1",
             { className: "head-title" },
-            "Edit lap boundaries ",
-            React.createElement("span", { className: "head-title__em" }, "without"),
-            " damaging FIT data."
+            "Butter-smooth lap fixes"
           ),
           React.createElement(
             "p",
             { className: "head-lede" },
-            "Upload a ",
-            React.createElement("code", null, ".fit"),
-            " activity. Inspect lap boundaries on an interactive chart. Export a corrected file that preserves every byte of original FIT structure outside the laps you actually touched."
+            "Fix accidental splits, missed lap presses and messy workouts without collateral damage to your FIT file"
           )
         ),
 
@@ -406,11 +402,13 @@
               React.createElement(
                 "span",
                 { className: "upload-spec" },
-                "ACCEPT  *.fit",
+                "ACCEPT",
                 React.createElement("span", { className: "upload-spec__sep" }, "·"),
-                "MAX  50 MB",
+                "*.fit",
                 React.createElement("span", { className: "upload-spec__sep" }, "·"),
-                "I/O  client-side"
+                "MAX 50 MB",
+                React.createElement("span", { className: "upload-spec__sep" }, "·"),
+                "CLIENT-ONLY"
               )
             ),
 
@@ -424,23 +422,24 @@
                 { className: "loaded__file" },
                 React.createElement("span", { className: "loaded__icon" }, "▤"),
                 React.createElement("span", { className: "loaded__name" }, D.filename),
-                React.createElement("span", { className: "loaded__sep" }, "·"),
-                React.createElement("span", null, D.size),
-                React.createElement("span", { className: "loaded__sep" }, "·"),
-                React.createElement("span", null, D.when),
-                React.createElement("span", { className: "loaded__sep" }, "·"),
-                React.createElement(
-                  "span",
-                  { className: "loaded__sport" },
-                  React.createElement("span", { className: "loaded__k" }, "SPORT"),
-                  "Run"
-                ),
                 React.createElement("span", { className: "loaded__spacer" }),
                 React.createElement(
                   "button",
-                  { type: "button", className: "reset-btn", title: "Discard file and start over" },
+                  { type: "button", className: "btn-danger", title: "Discard file and start over" },
                   "Clear"
                 )
+              ),
+              React.createElement(
+                "div",
+                { className: "loaded__meta" },
+                D.size,
+                React.createElement("span", { className: "loaded__sep" }, "·"),
+                D.when,
+                React.createElement("span", { className: "loaded__sep" }, "·"),
+                React.createElement("span", { className: "loaded__k" }, "SPORT"),
+                " Run",
+                React.createElement("span", { className: "loaded__sep" }, "·"),
+                "5 series"
               ),
               React.createElement(
                 "div",
@@ -588,9 +587,14 @@
                 "div",
                 { className: "filename-preview" },
                 React.createElement("span", { className: "k" }, "OUTPUT:"),
-                "1776949031-GIR",
-                React.createElement("span", { className: "tag-suffix" }, "-butterlaps"),
-                ".fit"
+                React.createElement("input", {
+                  className: "filename-input",
+                  type: "text",
+                  defaultValue: "1776949031-GIR-butterlaps",
+                  size: 28,
+                  readOnly: true,
+                }),
+                React.createElement("span", { className: "filename-ext" }, ".fit")
               )
             )
           )
