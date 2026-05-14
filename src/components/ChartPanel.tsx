@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
+import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea } from 'recharts';
 import type { FitActivity, Marker } from '../types';
 import { ChartZoomOverlay, type HoverSeriesInfo } from './ChartZoomOverlay';
 
@@ -11,11 +11,29 @@ const ZOOM_PADDING = 0.10;
 
 const PRIMARY_SERIES = ['Pace', 'Power', 'Heart Rate', 'Cadence'] as const;
 
+const STORAGE_KEY = 'butterlaps-active-series';
+
+function readStoredSeries(): Set<string> | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return new Set(parsed as string[]);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writeStoredSeries(active: Set<string>) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...active]));
+  } catch { /* ignore */ }
+}
+
 const SERIES_COLORS: Record<string, string> = {
-  Pace: '#6366f1',
-  'Heart Rate': '#ef4444',
-  Power: '#f59e0b',
-  Cadence: '#10b981',
+  Pace: '#4f3bcc',
+  'Heart Rate': '#9e2020',
+  Power: '#c5701b',
+  Cadence: '#2e7a4e',
 };
 
 const SERIES_UNITS: Record<string, string> = {
@@ -65,16 +83,22 @@ interface Props {
   zoom: { start: number; end: number } | null;
   onZoom: (start: number, end: number) => void;
   onZoomReset: () => void;
+  onAddMarker: (t: number) => void;
+  onMoveMarker: (originalTime: number, newTime: number) => void;
+  onMergeMarker: (draggedTime: number) => void;
 }
 
-export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Props) {
+export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAddMarker, onMoveMarker, onMergeMarker }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
+    const available = new Set(activity.series.map((s) => s.name));
+    const stored = readStoredSeries();
+    if (stored) return new Set([...stored].filter((name) => available.has(name)));
     const defaults = new Set<string>();
-    if (activity.series.some((s) => s.name === 'Elevation')) defaults.add('Elevation');
-    if (activity.series.some((s) => s.name === 'Pace')) defaults.add('Pace');
+    if (available.has('Elevation')) defaults.add('Elevation');
+    if (available.has('Pace')) defaults.add('Pace');
     return defaults;
   });
 
@@ -104,6 +128,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
   );
 
   const elevationSeries = activity.series.find((s) => s.name === 'Elevation');
+  const distanceSeries = activity.series.find((s) => s.name === 'Distance');
 
   const minElevation = useMemo(() => {
     if (!elevationSeries || !elevationSeries.values.length) return 0;
@@ -126,43 +151,62 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
     }
 
     if (activeSeries.has('Elevation') && elevationSeries) {
-      result.push({ name: 'Elevation', color: '#b0a098', unit: 'm', values: elevationSeries.values });
+      result.push({ name: 'Elevation', color: '#9c8060', unit: 'm', values: elevationSeries.values });
+    }
+
+    if (distanceSeries && distanceSeries.values.length) {
+      result.push({ name: 'Distance', color: '', unit: 'm', values: distanceSeries.values });
     }
 
     return result;
-  }, [availablePrimary, activeSeries, activity, elevationSeries]);
+  }, [availablePrimary, activeSeries, activity, elevationSeries, distanceSeries]);
 
   const toggleSeries = (name: string) => {
     setActiveSeries((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
+      writeStoredSeries(next);
       return next;
     });
   };
 
   return (
-    <div className="chart-section">
-      <div className="series-toggles">
+    <div>
+      <div className="chips">
         {elevationSeries && (
           <button
             type="button"
-            className={`series-toggle series-toggle--elevation ${activeSeries.has('Elevation') ? 'series-toggle--active' : ''}`}
+            className={`series-chip${activeSeries.has('Elevation') ? ' is-on' : ''}`}
+            style={activeSeries.has('Elevation') ? { color: '#7a6448', borderColor: '#7a6448' } : undefined}
             onClick={() => toggleSeries('Elevation')}
           >
-            Elevation
+            <span
+              className="series-chip__led"
+              style={activeSeries.has('Elevation') ? { background: '#7a6448', boxShadow: '0 0 5px #7a6448' } : undefined}
+            />
+            Elev
           </button>
         )}
-        {availablePrimary.map((name) => (
-          <button
-            key={name}
-            type="button"
-            className={`series-toggle series-toggle--${name.toLowerCase().replace(' ', '-')} ${activeSeries.has(name) ? 'series-toggle--active' : ''}`}
-            onClick={() => toggleSeries(name)}
-          >
-            {name}
-          </button>
-        ))}
+        {availablePrimary.map((name) => {
+          const color = SERIES_COLORS[name];
+          const on = activeSeries.has(name);
+          return (
+            <button
+              key={name}
+              type="button"
+              className={`series-chip${on ? ' is-on' : ''}`}
+              style={on ? { color, borderColor: color } : undefined}
+              onClick={() => toggleSeries(name)}
+            >
+              <span
+                className="series-chip__led"
+                style={on ? { background: color, boxShadow: `0 0 5px ${color}` } : undefined}
+              />
+              {name === 'Heart Rate' ? 'HR' : name === 'Cadence' ? 'Cad' : name}
+            </button>
+          );
+        })}
       </div>
 
       <div ref={containerRef} className="chart-wrapper">
@@ -170,8 +214,8 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
           <ComposedChart margin={CHART_MARGIN}>
             <defs>
               <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#c8bdb4" stopOpacity={0.8} />
-                <stop offset="100%" stopColor="#c8bdb4" stopOpacity={0.15} />
+                <stop offset="0%" stopColor="#c8b080" stopOpacity={0.7} />
+                <stop offset="100%" stopColor="#c8b080" stopOpacity={0.08} />
               </linearGradient>
             </defs>
 
@@ -186,9 +230,9 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
               height={XAXIS_HEIGHT}
               tickFormatter={formatXTick}
               ticks={ticks}
-              tick={{ fontSize: 11, fill: '#94a3b8' }}
-              axisLine={{ stroke: '#e2e8f0' }}
-              tickLine={{ stroke: '#e2e8f0' }}
+              tick={{ fontSize: 10, fill: '#969389', fontFamily: 'JetBrains Mono, monospace' }}
+              axisLine={{ stroke: '#e0ddd3' }}
+              tickLine={{ stroke: '#e0ddd3' }}
             />
 
             {zoom && displayDomain[0] < zoom.start && (
@@ -212,7 +256,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
                 yAxisId="elev"
                 baseValue={minElevation - 10}
                 fill="url(#elevGradient)"
-                stroke="#b0a098"
+                stroke="#9c8060"
                 activeDot={false}
                 strokeWidth={1}
                 dot={false}
@@ -220,15 +264,6 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
               />
             )}
 
-            {markers.map((marker) => (
-              <ReferenceLine
-                key={marker.timeOffsetSeconds}
-                x={marker.timeOffsetSeconds}
-                yAxisId="elev"
-                stroke="#64748b"
-                strokeWidth={0.75}
-              />
-            ))}
 
             {availablePrimary
               .filter((name) => activeSeries.has(name))
@@ -262,9 +297,23 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Pro
             onZoom={onZoom}
             onZoomReset={onZoomReset}
             hoverSeries={hoverSeriesData}
+            markerTimes={markers.map((m) => m.timeOffsetSeconds)}
+            draggableMarkerTimes={(() => {
+              const startT = markers[0]?.timeOffsetSeconds ?? -1;
+              const endT = markers[markers.length - 1]?.timeOffsetSeconds ?? -1;
+              return markers
+                .filter((m) => m.timeOffsetSeconds > startT && m.timeOffsetSeconds < endT)
+                .map((m) => m.timeOffsetSeconds);
+            })()}
+            onAddMarker={onAddMarker}
+            onMoveMarker={onMoveMarker}
+            onMergeMarker={onMergeMarker}
           />
         )}
       </div>
+      <p className="plot-foot">
+        drag to zoom · double-click to add marker · drag marker to adjust · drop on neighbour to delete
+      </p>
     </div>
   );
 }

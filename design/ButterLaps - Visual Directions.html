@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ButterLaps — Telemetry, refined</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #f3f1ec; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+</style>
+<link rel="stylesheet" href="telemetry-v2.css" />
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="shared-data.js"></script>
+<script src="chart-mock.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="telemetry-v2.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+  const { useState } = React;
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+
+  /**
+   * Wraps the static TelemetryV2View with its own theme state so that the
+   * in-product theme toggle (sun/moon in the status bar) flips just this
+   * artboard. Each artboard is independent — the canvas keeps all four
+   * variants visible side by side for comparison.
+   */
+  function LiveTelemetry({ initialTheme, layout }) {
+    const [theme, setTheme] = useState(initialTheme);
+    return <window.TelemetryV2View theme={theme} layout={layout} onThemeChange={setTheme} />;
+  }
+
+  function App() {
+    return (
+      <DesignCanvas title="ButterLaps — Telemetry, refined (light + dark, wide + compact)">
+        <DCSection id="wide" title="Wide layout — chart + table side by side">
+          <DCArtboard id="light-wide" label="Light · Wide" width={1320} height={1320}>
+            <LiveTelemetry initialTheme="light" layout="wide" />
+          </DCArtboard>
+          <DCArtboard id="dark-wide" label="Dark · Wide" width={1320} height={1320}>
+            <LiveTelemetry initialTheme="dark" layout="wide" />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="compact" title="Compact layout — chart and table stack">
+          <DCArtboard id="light-compact" label="Light · Compact" width={760} height={2200}>
+            <LiveTelemetry initialTheme="light" layout="compact" />
+          </DCArtboard>
+          <DCArtboard id="dark-compact" label="Dark · Compact" width={760} height={2200}>
+            <LiveTelemetry initialTheme="dark" layout="compact" />
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

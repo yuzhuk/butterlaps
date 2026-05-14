@@ -7,12 +7,16 @@
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
+├── increment-build.js
 ├── index.html
 ├── README.md
 ├── CLAUDE.md
+├── AGENTS.md
 ├── engineering-rules.md
 ├── tech-stack.md
-├── data-model.md           ← draft type definitions (predates docs/)
+├── data-model.md           ← original draft type definitions
+├── project-structure.md    ← this file
+├── design/                 ← design mockups and reference assets
 ├── docs/                   ← requirements and design docs
 │   ├── requirements.md     ← index
 │   ├── overview.md
@@ -23,6 +27,8 @@
 │   ├── lap-table.md
 │   ├── export.md
 │   └── future.md
+├── test-artifacts/         ← Playwright scripts and screenshots (gitignored)
+├── test-data/              ← sample .fit files for tests (gitignored)
 └── src
     ├── main.tsx
     ├── App.tsx
@@ -41,6 +47,9 @@
 ## Purpose of each area
 
 - `src/fit` — FIT-specific parsing, writing, and integrity logic, isolated from UI
-- `src/components` — UI components; currently ChartPanel and its zoom overlay
-- `src/tests` — Vitest unit tests; sample FIT files live in `test-data/`
+- `src/components` — UI components; ChartPanel and its zoom/marker overlay
+- `src/tests` — Vitest unit tests
+- `test-artifacts/` — Playwright visual test scripts and screenshots (gitignored)
+- `test-data/` — sample FIT files used by tests (gitignored)
+- `design/` — design mockups and reference CSS/JSX
 - `docs/` — all requirements and design decisions; `requirements.md` is the index

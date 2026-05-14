@@ -43,22 +43,21 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 - FIT upload — file picker and drag-and-drop
 - FIT parsing
-- interactive chart with series toggles and zoom
+- interactive chart with series toggles (with localStorage persistence) and zoom
 - lap visualisation as vertical reference lines on the chart
-- lap merge via table
-- lap summary table (live-updating)
-- FIT export with lap rewrite
-- change summary before export
-
-### Still Planned (v0.1)
-
 - drag lap markers horizontally on the chart
 - double-click chart to add a new marker
-- delete marker by dragging it onto a neighbour
-- snapping (default 10 s, prefer actual data points)
+- drag marker onto neighbour to delete
+- lap merge via table button
+- lap summary table (live-updating, color-coded by series)
+- change summary before export
+- FIT export with lap rewrite
+- editable export filename
+- light / dark / system theme with persistence
 
 ### Out of Scope (v0.1)
 
+- snapping (v0.2+)
 - AI suggestions
 - accounts / cloud storage
 - Strava/Garmin sync
