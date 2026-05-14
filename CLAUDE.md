@@ -28,21 +28,22 @@ Laps are never stored as `{ start, end }` objects. They are **derived** from an 
 
 `rawFitPayload: ArrayBuffer` is always preserved verbatim. The export layer rewrites only the minimum lap-related FIT structures — all unknown messages, developer fields, and vendor-specific fields must survive the round-trip unchanged.
 
-### Code layout (current and intended)
+### Code layout
 
 ```
 src/
-  types.ts          — shared domain types (Marker, FitActivity, Series, …)
-  App.tsx           — top-level layout, file upload/export, lap table
-  styles.css        — all styling (no inline styles)
+  types.ts                  — shared domain types (Marker, FitActivity, Series, …)
+  App.tsx                   — top-level layout, file upload/export, lap table
+  styles.css                — all styling (no inline styles)
   fit/
-    fitParser.ts    — parses ArrayBuffer → FitActivity using fit-file-parser
-    fitWriter.ts    — (planned) rewrites lap records into raw FIT bytes
-    fitTypes.ts     — (planned) FIT-specific low-level types
-  components/       — (planned) FitUpload, ChartPanel, LapSummary, MarkerList
-  hooks/            — (planned) useFitActivity, useMarkerDrag, useZoomPan
-  utils/            — (planned) format.ts, snap.ts, validation.ts
-  tests/            — Vitest unit and component tests
+    fitParser.ts            — parses ArrayBuffer → FitActivity using fit-file-parser
+    fitWriter.ts            — rewrites lap records into raw FIT bytes
+  components/
+    ChartPanel.tsx          — chart, series toggles, zoom wiring
+    ChartZoomOverlay.tsx    — SVG overlay for zoom, markers, hover, drag
+  tests/
+    fitParser.test.ts       — Vitest unit tests for parser
+test-artifacts/             — Playwright screenshots and test scripts (gitignored)
 ```
 
 ### fitParser.ts flow
@@ -66,7 +67,7 @@ From `engineering-rules.md` — treat these as non-negotiable:
 
 ## FIT integrity (non-negotiable product rule)
 
-From `poc_requirements.md`:
+From `docs/export.md`:
 
 - The export must preserve unknown messages, developer fields, vendor-specific fields, and timestamps
 - Only lap-related structures should be rewritten
@@ -82,4 +83,5 @@ When touching export logic, always verify the raw payload is passed through unch
 
 - Tests use Vitest + `@testing-library/react`
 - FIT parsing tests can use the sample file at `test-data/1776592537-GIR.fit`
-- E2E (Playwright) is not yet set up; marker drag interactions currently require manual browser testing
+- Visual/regression tests use Playwright; scripts and screenshots live in `test-artifacts/` (gitignored)
+- Use `.cjs` extension for Playwright scripts (project `type: "module"` requires it)

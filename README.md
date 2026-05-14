@@ -1,38 +1,32 @@
 # ButterLaps
 
-A lightweight web app for editing lap boundaries inside FIT activity files without damaging original activity data.
+Edit lap boundaries inside FIT activity files without damaging original activity data.
 
-## Overview
+## What it does
 
-This repository is a starter shell for the `ButterLaps` project.
+Upload a `.fit` file, edit lap markers visually on an interactive chart, export a corrected file. The export preserves every byte of original FIT structure outside the laps you actually touched.
+
+Client-only — no backend, no accounts, no data leaves your device.
 
 ## Getting Started
 
-1. Clone the repository:
-   ```bash
+```bash
 git clone https://github.com/yuzhuk/lap-editor.git
-```
-2. Install dependencies:
-   ```bash
+cd lap-editor
 npm install
+npm run dev       # dev server at http://localhost:4173
+npm run build     # production build (auto-increments build number)
+npm run test      # run Vitest tests
 ```
-3. Run the development server:
-   ```bash
-npm run dev
-```
 
-> The project uses Vite, React, and TypeScript. Make sure Node.js is installed before running the commands above.
+## Documentation
 
-## Reference Documentation
-
-The repository includes guardrail references for the POC implementation:
-
-- `project-structure.md` — recommended folder structure and responsibilities
-- `data-model.md` — first draft of the core marker/lap/activity data model
-- `tech-stack.md` — chosen frontend stack, charting approach, FIT parsing/export strategy, and tooling
-- `engineering-rules.md` — project engineering rules for architecture and implementation
-
-Use these documents as the single source of truth when adding features, refining the parser, or changing the UI architecture.
+- [`docs/overview.md`](docs/overview.md) — product summary, principles, scope
+- [`docs/requirements.md`](docs/requirements.md) — index of all requirement docs
+- [`project-structure.md`](project-structure.md) — folder layout and responsibilities
+- [`data-model.md`](data-model.md) — core marker/lap/activity data model
+- [`tech-stack.md`](tech-stack.md) — stack choices and FIT parsing/export strategy
+- [`engineering-rules.md`](engineering-rules.md) — implementation and architecture rules
 
 ## License
 

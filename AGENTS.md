@@ -5,9 +5,9 @@ This repository is a small React + TypeScript browser app for editing lap bounda
 ## What to know first
 
 - The app is a client-only Vite project. There is no backend.
-- Core logic lives in `src/fit` for FIT parsing/export and `src/hooks` for interaction state.
-- UI is in `src/App.tsx` and `src/styles.css` with minimal component structure.
-- Keep changes small, type-safe, and aligned with the existing proof-of-concept architecture.
+- FIT parsing and export logic lives in `src/fit/`.
+- UI is in `src/App.tsx`, `src/styles.css`, and `src/components/`.
+- Keep changes small, type-safe, and aligned with the existing architecture.
 
 ## Build and test commands
 
@@ -15,32 +15,31 @@ This repository is a small React + TypeScript browser app for editing lap bounda
 - Dev server: `npm run dev`
 - Build: `npm run build`
 - Test: `npm run test`
+- Visual tests: Playwright scripts in `test-artifacts/` (use `.cjs` extension)
 
 ## Key project conventions
 
 - Use TypeScript everywhere.
 - Prefer functional React components and hooks; avoid class components.
 - Keep components focused and under ~250 lines.
-- Keep state logic in custom hooks rather than large component state.
-- Isolate FIT integrity logic in `src/fit` and preserve original FIT payloads when editing.
-- Avoid inline styles; use `styles.css` or future component-scoped styling.
+- Isolate FIT integrity logic in `src/fit/` and preserve original FIT payloads when editing.
+- Avoid inline styles; use `styles.css`.
+- No AI suggestions, no backend calls, no data leaves the browser.
 
 ## Important files
 
-- `src/fit/fitParser.ts` — FIT parsing and any core data-model logic.
+- `src/fit/fitParser.ts` — FIT parsing, marker extraction, series normalisation.
+- `src/fit/fitWriter.ts` — FIT export, lap message rewrite, CRC recalculation.
 - `src/types.ts` — shared TypeScript types for lap/marker/activity data.
 - `src/App.tsx` — application composition and top-level UI state.
-- `src/main.tsx` — Vite app bootstrap.
-- `src/styles.css` — base styling.
+- `src/styles.css` — all styling (CSS custom properties for light/dark theming).
+- `src/components/ChartPanel.tsx` — chart, series toggles, zoom wiring.
+- `src/components/ChartZoomOverlay.tsx` — SVG overlay for zoom, markers, hover, drag.
 
 ## Useful documentation
 
-- `project-structure.md` — recommended folder layout and responsibilities.
+- `docs/overview.md` — product summary, principles, built vs planned scope.
+- `docs/requirements.md` — index of all requirement docs.
+- `project-structure.md` — folder layout and responsibilities.
 - `data-model.md` — core domain model concepts.
-- `tech-stack.md` — stack choices and FIT parsing/export expectations.
 - `engineering-rules.md` — implementation and architecture rules.
-
-## How to use this file
-
-- Use this file as the top-level guide for code changes, feature work, or refactors.
-- When in doubt, follow the repository docs and preserve the current POC architecture.

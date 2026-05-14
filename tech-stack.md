@@ -1,7 +1,5 @@
 # Technology Stack
 
-This document captures the recommended stack for the `ButterLaps` proof-of-concept application.
-
 ## Frontend
 
 - `React` — UI component library for rendering the editor and managing state.
@@ -10,53 +8,40 @@ This document captures the recommended stack for the `ButterLaps` proof-of-conce
 
 ## UI / Styling
 
-- `CSS` / `styles.css` — lightweight base styling for the initial desktop-first interface.
-- Optional future additions:
-  - `Tailwind CSS` for faster utility-driven styling
-  - `CSS Modules` for component-scoped styles
+- `CSS` / `styles.css` — all styling via CSS custom properties for light/dark theming.
+- No Tailwind, no CSS modules currently.
 
 ## Charting and Interaction
 
-- `visx` or `Recharts` — recommended for interactive line charts, custom series rendering, and overlay support.
-- Custom drag/marker overlay code alongside the chart to handle lap boundary editing, snapping, and zoom.
+- `Recharts` — interactive line/area chart, custom series rendering.
+- Custom SVG overlay (`ChartZoomOverlay`) handles lap markers, drag editing, zoom, and hover.
 
 ## FIT parsing / export
 
-- Browser-compatible FIT parser/writer library (for example `fit-file-parser`, `fit-decoder`, or a custom wrapper around a browser-friendly parser).
-- The FIT layer must preserve:
-  - unknown messages
-  - vendor-specific fields
-  - developer fields
-  - timestamps wherever possible
-- Export should rewrite only lap-related structures and preserve original FIT payload integrity.
+- `fit-file-parser` — browser-compatible FIT parser (mode: `'both'`).
+- `fitWriter.ts` — custom FIT export layer; rewrites only lap messages, preserves all other bytes verbatim.
+- The FIT layer must preserve: unknown messages, vendor-specific fields, developer fields, timestamps.
 
 ## State and data model
 
-- React component state and local hooks for initial POC state management.
-- Optional lightweight store like `Zustand` if state grows beyond simple UI state.
-- Marker-first model for lap editing, with derived lap objects computed from boundary markers.
+- React component state and local hooks for UI state management.
+- `localStorage` for theme preference and series toggle persistence.
+- Marker-first model for lap editing; derived lap objects computed from boundary markers.
 
 ## Testing
 
 - `Vitest` — unit and component test runner.
 - `@testing-library/react` — React component testing.
-- Optional future E2E: `Playwright` for interaction flows and manual marker editing verification.
+- `Playwright` — visual/regression testing; scripts and screenshots in `test-artifacts/`.
 
 ## Tooling
 
 - `npm` — package management and scripts.
 - `tsc` — TypeScript type-checking.
 - `vite` — development server, build, and preview.
+- `increment-build.js` — auto-increments the fourth version segment on each build.
 
 ## Deployment
 
-- Static site deployment from the build output.
-- No backend required for v0.1; the application is client-only.
-
-## Summary
-
-The stack focuses on a small, maintainable browser-based app with:
-- strong type safety via TypeScript,
-- interactive charting via React-compatible chart tools,
-- a lightweight FIT parsing/export layer,
-- and a modular structure for future growth.
+- Static site deployment from the build output in `dist/`.
+- No backend required; the application is entirely client-side.
