@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { ComposedChart, Area, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceArea, ReferenceLine } from 'recharts';
-import type { FitActivity } from '../types';
+import type { FitActivity, Marker } from '../types';
 import { ChartZoomOverlay, type HoverSeriesInfo } from './ChartZoomOverlay';
 
 const CHART_MARGIN = { top: 18, right: 10, bottom: 24, left: 10 } as const;
@@ -61,12 +61,13 @@ function formatXTick(raw: number): string {
 
 interface Props {
   activity: FitActivity;
+  markers: Marker[];
   zoom: { start: number; end: number } | null;
   onZoom: (start: number, end: number) => void;
   onZoomReset: () => void;
 }
 
-export function ChartPanel({ activity, zoom, onZoom, onZoomReset }: Props) {
+export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -219,7 +220,7 @@ export function ChartPanel({ activity, zoom, onZoom, onZoomReset }: Props) {
               />
             )}
 
-            {activity.markers.map((marker) => (
+            {markers.map((marker) => (
               <ReferenceLine
                 key={marker.timeOffsetSeconds}
                 x={marker.timeOffsetSeconds}

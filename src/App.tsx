@@ -1,8 +1,9 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { version } from '../package.json';
 import { parseFitFile } from './fit/fitParser';
+import { rewriteLaps } from './fit/fitWriter';
 import { ChartPanel } from './components/ChartPanel';
-import type { FitActivity } from './types';
+import type { FitActivity, Marker } from './types';
 
 function formatDuration(seconds: number) {
   const hours = Math.floor(seconds / 3600);
@@ -33,22 +34,26 @@ function formatActivityDate(ms: number): string {
 
 function getExportFileName(originalName: string): string {
   const lastDotIndex = originalName.lastIndexOf('.');
-  if (lastDotIndex <= 0) {
-    return `${originalName}-betterlaps`;
+  const baseName = lastDotIndex > 0 ? originalName.slice(0, lastDotIndex) : originalName;
+  const extension = lastDotIndex > 0 ? originalName.slice(lastDotIndex) : '';
+
+  const match = baseName.match(/^(.*-betterlaps)(\d*)$/);
+  if (match) {
+    const n = match[2] === '' ? 1 : parseInt(match[2], 10);
+    return `${match[1]}${n + 1}${extension}`;
   }
 
-  const baseName = originalName.slice(0, lastDotIndex);
-  const extension = originalName.slice(lastDotIndex);
   return `${baseName}-betterlaps${extension}`;
 }
 
-function getLapIntervals(markers: Array<{ timeOffsetSeconds: number; label: string }>) {
+function getLapIntervals(markers: Marker[]) {
   return markers
     .slice(0, -1)
     .map((marker, index) => {
       const next = markers[index + 1];
       return {
         lapNumber: index + 1,
+        markerIndex: index,
         startOffsetSeconds: marker.timeOffsetSeconds,
         durationSeconds: next.timeOffsetSeconds - marker.timeOffsetSeconds,
       };
@@ -57,6 +62,10 @@ function getLapIntervals(markers: Array<{ timeOffsetSeconds: number; label: stri
 }
 
 const SERIES_ORDER = ['Distance', 'Pace', 'Power', 'Heart Rate', 'Cadence'];
+
+const SERIES_DISPLAY_NAME: Record<string, string> = {
+  'Heart Rate': 'HR',
+};
 
 const SERIES_UNITS: Record<string, string> = {
   Distance: 'm',
@@ -82,8 +91,8 @@ function getTableSeries(activity: FitActivity) {
     });
 }
 
-function buildLapRows(activity: FitActivity) {
-  const intervals = getLapIntervals(activity.markers);
+function buildLapRows(activity: FitActivity, markers: Marker[]) {
+  const intervals = getLapIntervals(markers);
   const seriesList = getTableSeries(activity);
 
   return intervals.map((interval, index) => ({
@@ -91,7 +100,7 @@ function buildLapRows(activity: FitActivity) {
     lapNumber: index + 1,
     values: seriesList.map((series) => {
       const points = series.values.filter(
-        (point) => point.timeOffsetSeconds >= interval.startOffsetSeconds && point.timeOffsetSeconds < interval.startOffsetSeconds + interval.durationSeconds
+        (point) => point.timeOffsetSeconds >= interval.startOffsetSeconds && point.timeOffsetSeconds <= interval.startOffsetSeconds + interval.durationSeconds
       );
 
       if (series.name === 'Distance') {
@@ -107,9 +116,9 @@ function buildLapRows(activity: FitActivity) {
   }));
 }
 
-function getSummaryRow(activity: FitActivity) {
+function getSummaryRow(activity: FitActivity, markers: Marker[]) {
   const seriesList = getTableSeries(activity);
-  const lapRows = buildLapRows(activity);
+  const lapRows = buildLapRows(activity, markers);
   const totalDuration = lapRows.reduce((sum, row) => sum + row.durationSeconds, 0);
   const distanceSeries = activity.series.find((series) => series.name === 'Distance');
   const totalDistance = distanceSeries && distanceSeries.values.length > 1
@@ -154,9 +163,11 @@ function formatLapValue(value: number | null, metric?: string) {
   return String(Math.round(value));
 }
 
+
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [activity, setActivity] = useState<FitActivity | null>(null);
+  const [markers, setMarkers] = useState<Marker[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
@@ -183,10 +194,12 @@ function App() {
       const parsedActivity = await parseFitFile(selectedFile);
       setFile(selectedFile);
       setActivity(parsedActivity);
+      setMarkers(parsedActivity.markers);
       setZoom(null);
     } catch (err) {
       setFile(null);
       setActivity(null);
+      setMarkers([]);
       setZoom(null);
       setError(err instanceof Error ? err.message : 'Unable to read the uploaded file.');
     } finally {
@@ -194,13 +207,17 @@ function App() {
     }
   };
 
+  const removeLap = (markerIndex: number) => {
+    setMarkers((prev) => prev.filter((_, i) => i !== markerIndex));
+  };
+
   const handleExport = () => {
-    if (!file) {
+    if (!file || !activity) {
       return;
     }
 
-    const payload = activity?.rawFitPayload ?? file;
-    const blob = payload instanceof File ? payload : new Blob([payload], { type: 'application/octet-stream' });
+    const payload = rewriteLaps(activity, markers);
+    const blob = new Blob([payload], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -211,7 +228,10 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const summaryRow = activity ? getSummaryRow(activity) : null;
+  const lapRows = activity ? buildLapRows(activity, markers) : [];
+  const summaryRow = activity ? getSummaryRow(activity, markers) : null;
+  const originalLapCount = activity ? getLapIntervals(activity.markers).length : 0;
+  const hasChanges = activity ? lapRows.length !== originalLapCount : false;
 
   return (
     <div className="container">
@@ -257,6 +277,7 @@ function App() {
               <div className="activity-layout">
                 <ChartPanel
                   activity={activity}
+                  markers={markers}
                   zoom={zoom}
                   onZoom={(start, end) => setZoom({ start, end })}
                   onZoomReset={() => setZoom(null)}
@@ -267,21 +288,38 @@ function App() {
                     <table className="lap-table">
                       <thead>
                         <tr>
-                          <th>Lap</th>
+                          <th>#</th>
                           <th>Start</th>
                           <th>Duration</th>
                           {getTableSeries(activity).map((series) => (
-                            <th key={series.name}>{series.name}</th>
+                            <th key={series.name}>{SERIES_DISPLAY_NAME[series.name] ?? series.name}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {buildLapRows(activity).map((row) => (
+                        {lapRows.map((row, index) => (
                           <tr
                             key={row.lapNumber}
+                            className={`lap-data-row${index % 2 === 1 ? ' lap-data-row--even' : ''}`}
                             onClick={() => setZoom({ start: row.startOffsetSeconds, end: row.startOffsetSeconds + row.durationSeconds })}
                           >
-                            <td>{row.lapNumber}</td>
+                            <td className="lap-num-td">
+                              {row.lapNumber}
+                              {index < lapRows.length - 1 && (
+                                <button
+                                  type="button"
+                                  className="lap-merge-btn"
+                                  title="Merge"
+                                  aria-label={`Merge lap ${row.lapNumber} with lap ${lapRows[index + 1].lapNumber}`}
+                                  onClick={(e) => { e.stopPropagation(); removeLap(lapRows[index + 1].markerIndex); }}
+                                >
+                                  <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor" aria-hidden="true">
+                                    <polygon points="0,0 7,0 3.5,3"/>
+                                    <polygon points="0,8 7,8 3.5,5"/>
+                                  </svg>
+                                </button>
+                              )}
+                            </td>
                             <td>{formatDuration(row.startOffsetSeconds)}</td>
                             <td>{formatDuration(row.durationSeconds)}</td>
                             {row.values.map((value) => (
@@ -321,11 +359,20 @@ function App() {
 
         <div className="summary-section">
           <h2>File summary</h2>
-          {file ? (
+          {activity ? (
             <div className="lap-list">
               <div className="lap-item">
-                <strong>File ready to export</strong>
-                <span>The uploaded file will be downloaded unchanged when you export it.</span>
+                {hasChanges ? (
+                  <>
+                    <strong>{originalLapCount - lapRows.length} lap {originalLapCount - lapRows.length === 1 ? 'boundary' : 'boundaries'} removed</strong>
+                    <span>{originalLapCount} laps → {lapRows.length} laps</span>
+                  </>
+                ) : (
+                  <>
+                    <strong>No changes</strong>
+                    <span>{originalLapCount} {originalLapCount === 1 ? 'lap' : 'laps'} · File will be exported unchanged</span>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -333,7 +380,9 @@ function App() {
           )}
           {file && (
             <div className="file-actions">
-              <button type="button" onClick={handleExport}>Export same FIT file</button>
+              <button type="button" onClick={handleExport}>
+                {hasChanges ? 'Export edited FIT file' : 'Export FIT file'}
+              </button>
             </div>
           )}
         </div>

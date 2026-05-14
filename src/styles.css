@@ -140,7 +140,7 @@ button {
 .lap-table th:first-child,
 .lap-table td:first-child {
   text-align: left;
-  width: 2.5rem;
+  width: 1.5rem;
 }
 
 .lap-table th {
@@ -157,18 +157,49 @@ button {
   margin-left: 2px;
 }
 
-.lap-table tbody tr:nth-child(even) {
+.lap-data-row--even {
   background: #f8fafc;
 }
 
-.lap-table tbody tr,
+.lap-data-row,
 .lap-table tfoot tr {
   cursor: pointer;
 }
 
-.lap-table tbody tr:hover,
+.lap-data-row:hover,
 .lap-table tfoot tr:hover {
   background: #eff6ff;
+}
+
+.lap-num-td {
+  position: relative;
+  overflow: visible;
+}
+
+.lap-merge-btn {
+  position: absolute;
+  bottom: -7.5px;
+  left: 30px;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+}
+
+.lap-merge-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #ef4444;
 }
 
 .lap-table td {
