@@ -171,18 +171,33 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const openFilePicker = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (!selectedFile) {
-      return;
-    }
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
 
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      await loadFile(droppedFile);
+    }
+  };
+
+  const loadFile = async (selectedFile: File) => {
     setError(null);
     setIsLoading(true);
 
@@ -205,6 +220,11 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) await loadFile(selectedFile);
   };
 
   const removeLap = (markerIndex: number) => {
@@ -232,6 +252,13 @@ function App() {
   const summaryRow = activity ? getSummaryRow(activity, markers) : null;
   const originalLapCount = activity ? getLapIntervals(activity.markers).length : 0;
   const hasChanges = activity ? lapRows.length !== originalLapCount : false;
+  const removedBoundaries = activity ? (() => {
+    const currentStarts = new Set(getLapIntervals(markers).map((iv) => iv.startOffsetSeconds));
+    return getLapIntervals(activity.markers)
+      .slice(1)
+      .filter((iv) => !currentStarts.has(iv.startOffsetSeconds))
+      .map((iv) => iv.startOffsetSeconds);
+  })() : [];
 
   return (
     <div className="container">
@@ -246,7 +273,12 @@ function App() {
       </header>
 
       <section className="panel">
-        <div className="upload-box">
+        <div
+          className={`upload-box${isDragOver ? ' upload-box--drag-over' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -255,6 +287,7 @@ function App() {
             className="file-input"
           />
           <button type="button" onClick={openFilePicker}>Upload FIT file</button>
+          <span className="upload-hint">or drag and drop here</span>
         </div>
         {error ? <div className="alert">{error}</div> : null}
         {isLoading ? <p>Loading file…</p> : null}
@@ -366,11 +399,12 @@ function App() {
                   <>
                     <strong>{originalLapCount - lapRows.length} lap {originalLapCount - lapRows.length === 1 ? 'boundary' : 'boundaries'} removed</strong>
                     <span>{originalLapCount} laps → {lapRows.length} laps</span>
+                    <span className="removed-boundaries">{removedBoundaries.map(formatDuration).join(', ')}</span>
                   </>
                 ) : (
                   <>
                     <strong>No changes</strong>
-                    <span>{originalLapCount} {originalLapCount === 1 ? 'lap' : 'laps'} · File will be exported unchanged</span>
+                    <span>{originalLapCount} {originalLapCount === 1 ? 'lap' : 'laps'}</span>
                   </>
                 )}
               </div>
@@ -380,8 +414,8 @@ function App() {
           )}
           {file && (
             <div className="file-actions">
-              <button type="button" onClick={handleExport}>
-                {hasChanges ? 'Export edited FIT file' : 'Export FIT file'}
+              <button type="button" onClick={handleExport} disabled={!hasChanges}>
+                {hasChanges ? 'Export edited FIT file' : 'No changes to export'}
               </button>
             </div>
           )}

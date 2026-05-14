@@ -82,6 +82,16 @@ button {
   background: #2563eb;
 }
 
+.upload-box--drag-over {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+.upload-hint {
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
 .alert {
   color: #b91c1c;
   background: #fee2e2;
@@ -332,8 +342,14 @@ button {
   cursor: pointer;
 }
 
-.file-actions button:hover {
+.file-actions button:hover:not(:disabled) {
   background: #2563eb;
+}
+
+.file-actions button:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: default;
 }
 
 .lap-list {
@@ -354,7 +370,15 @@ button {
 }
 
 .lap-item span {
+  display: block;
   color: #475569;
+}
+
+.removed-boundaries {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
 }
 
 .version {
