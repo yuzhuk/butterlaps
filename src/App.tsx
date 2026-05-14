@@ -749,7 +749,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                     </div>
                   </div>
                 ) : (
-                  <p className="review__no-changes">No changes — lap boundaries match the original file.</p>
+                  <p className="review__no-changes">No changes — lap boundaries match the original file</p>
                 )}
               </div>
 
