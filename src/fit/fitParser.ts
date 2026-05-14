@@ -1,6 +1,21 @@
 import FitParser from 'fit-file-parser';
 import type { FitActivity, Marker } from '../types';
 
+export function snapToNearestTimestamp(t: number, timestamps: number[]): number {
+  if (timestamps.length === 0) return t;
+  let lo = 0;
+  let hi = timestamps.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (timestamps[mid] < t) lo = mid + 1;
+    else hi = mid;
+  }
+  if (lo > 0 && Math.abs(timestamps[lo - 1] - t) < Math.abs(timestamps[lo] - t)) {
+    return timestamps[lo - 1];
+  }
+  return timestamps[lo];
+}
+
 function getBaseTime(records: Array<any>, laps: Array<any> | undefined): number {
   if (records.length > 0 && records[0]?.timestamp) {
     const timestamp = Date.parse(records[0].timestamp);
@@ -27,7 +42,22 @@ function toOffsetSeconds(timestamp: string, baselineMs: number): number {
   return Math.max(0, Math.round((timeMs - baselineMs) / 1000));
 }
 
-function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>): Marker[] {
+function buildRecordTimestamps(records: Array<any>, baselineMs: number): number[] {
+  const seen = new Set<number>();
+  const result: number[] = [];
+  for (const record of records) {
+    if (!record.timestamp) continue;
+    const offset = toOffsetSeconds(record.timestamp, baselineMs);
+    if (!seen.has(offset)) {
+      seen.add(offset);
+      result.push(offset);
+    }
+  }
+  result.sort((a, b) => a - b);
+  return result;
+}
+
+function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, recordTimestamps: number[]): Marker[] {
   const markers: Marker[] = [{ timeOffsetSeconds: 0, label: 'Start' }];
 
   if (Array.isArray(parsedFit.laps)) {
@@ -35,8 +65,11 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>): 
       if (!lap?.start_time) {
         return;
       }
-      const offset = toOffsetSeconds(lap.start_time, baselineMs);
-      markers.push({ timeOffsetSeconds: offset, label: `Lap ${index + 1}` });
+      const rawOffset = toOffsetSeconds(lap.start_time, baselineMs);
+      const snapped = snapToNearestTimestamp(rawOffset, recordTimestamps);
+      if (snapped > 0) {
+        markers.push({ timeOffsetSeconds: snapped, label: `Lap ${index + 1}` });
+      }
     });
   }
 
@@ -47,7 +80,12 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>): 
     }
   }
 
-  return markers.sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
+  // Dedup by timeOffsetSeconds, keeping first occurrence, then sort
+  const seen = new Map<number, Marker>();
+  for (const m of markers) {
+    if (!seen.has(m.timeOffsetSeconds)) seen.set(m.timeOffsetSeconds, m);
+  }
+  return [...seen.values()].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
 }
 
 function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
@@ -162,6 +200,8 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
     parsedFit.activity?.sessions?.[0]?.sport ??
     'generic';
 
+  const recordTimestamps = buildRecordTimestamps(records, baselineMs);
+
   return {
     fileName: file.name,
     rawFitPayload: buffer,
@@ -174,7 +214,8 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
       activityType,
       startTime: baselineMs > 0 ? baselineMs : null,
     },
-    markers: buildMarkers(parsedFit, baselineMs, records),
+    markers: buildMarkers(parsedFit, baselineMs, records, recordTimestamps),
+    recordTimestamps,
     series: buildSeries(records, baselineMs),
   };
 }

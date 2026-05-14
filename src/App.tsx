@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { version } from '../package.json';
-import { parseFitFile } from './fit/fitParser';
+import { parseFitFile, snapToNearestTimestamp } from './fit/fitParser';
 import { rewriteLaps } from './fit/fitWriter';
 import { ChartPanel } from './components/ChartPanel';
 import type { FitActivity, Marker } from './types';
@@ -357,17 +357,22 @@ function App() {
   };
 
   const addMarker = (timeOffsetSeconds: number) => {
+    if (!activity) return;
+    const snapped = snapToNearestTimestamp(timeOffsetSeconds, activity.recordTimestamps);
     setMarkers((prev) => {
-      const newMarker = { timeOffsetSeconds, label: 'Lap' };
-      return [...prev, newMarker].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
+      if (prev.some((m) => m.timeOffsetSeconds === snapped)) return prev;
+      return [...prev, { timeOffsetSeconds: snapped, label: 'Lap' }].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
     });
   };
 
   const moveMarker = (originalTime: number, newTime: number) => {
-    setMarkers((prev) =>
-      prev.map((m) => m.timeOffsetSeconds === originalTime ? { ...m, timeOffsetSeconds: newTime } : m)
-        .sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds)
-    );
+    if (!activity) return;
+    const snapped = snapToNearestTimestamp(newTime, activity.recordTimestamps);
+    setMarkers((prev) => {
+      if (prev.some((m) => m.timeOffsetSeconds === snapped && m.timeOffsetSeconds !== originalTime)) return prev;
+      return prev.map((m) => m.timeOffsetSeconds === originalTime ? { ...m, timeOffsetSeconds: snapped } : m)
+        .sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
+    });
   };
 
   const mergeMarker = (draggedTime: number) => {
@@ -380,7 +385,13 @@ function App() {
 
   const handleExport = () => {
     if (!file || !activity) return;
-    const payload = rewriteLaps(activity, markers);
+    let payload: ArrayBuffer;
+    try {
+      payload = rewriteLaps(activity, markers);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed.');
+      return;
+    }
     const blob = new Blob([payload], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -466,7 +477,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
             Butter-smooth lap fixes
           </h1>
           <p className="head-lede">
-            Fix accidental splits, missed lap presses and messy workouts without collateral damage to your FIT file
+            Fix accidental splits and missed lap presses without collateral damage to your FIT file
           </p>
         </header>
 

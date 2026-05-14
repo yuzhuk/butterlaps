@@ -17,6 +17,7 @@ export type FitActivity = {
   fileName: string;
   summary: FitSummary;
   markers: Marker[];
+  recordTimestamps: number[];
   series: Array<{
     name: string;
     values: Array<{ timeOffsetSeconds: number; value: number }>;
