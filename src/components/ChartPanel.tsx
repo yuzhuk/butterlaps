@@ -11,9 +11,27 @@ const ZOOM_PADDING = 0.10;
 
 const PRIMARY_SERIES = ['Pace', 'Power', 'Heart Rate', 'Cadence'] as const;
 
+const STORAGE_KEY = 'butterlaps-active-series';
+
+function readStoredSeries(): Set<string> | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return new Set(parsed as string[]);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writeStoredSeries(active: Set<string>) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...active]));
+  } catch { /* ignore */ }
+}
+
 const SERIES_COLORS: Record<string, string> = {
   Pace: '#4f3bcc',
-  'Heart Rate': '#b8321f',
+  'Heart Rate': '#9e2020',
   Power: '#c5701b',
   Cadence: '#2e7a4e',
 };
@@ -75,9 +93,12 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
   const [containerWidth, setContainerWidth] = useState(0);
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
+    const available = new Set(activity.series.map((s) => s.name));
+    const stored = readStoredSeries();
+    if (stored) return new Set([...stored].filter((name) => available.has(name)));
     const defaults = new Set<string>();
-    if (activity.series.some((s) => s.name === 'Elevation')) defaults.add('Elevation');
-    if (activity.series.some((s) => s.name === 'Pace')) defaults.add('Pace');
+    if (available.has('Elevation')) defaults.add('Elevation');
+    if (available.has('Pace')) defaults.add('Pace');
     return defaults;
   });
 
@@ -130,7 +151,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
     }
 
     if (activeSeries.has('Elevation') && elevationSeries) {
-      result.push({ name: 'Elevation', color: '#b0a098', unit: 'm', values: elevationSeries.values });
+      result.push({ name: 'Elevation', color: '#9c8060', unit: 'm', values: elevationSeries.values });
     }
 
     if (distanceSeries && distanceSeries.values.length) {
@@ -145,6 +166,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
+      writeStoredSeries(next);
       return next;
     });
   };
@@ -156,12 +178,12 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
           <button
             type="button"
             className={`series-chip${activeSeries.has('Elevation') ? ' is-on' : ''}`}
-            style={activeSeries.has('Elevation') ? { color: '#9d9a90', borderColor: '#9d9a90' } : undefined}
+            style={activeSeries.has('Elevation') ? { color: '#7a6448', borderColor: '#7a6448' } : undefined}
             onClick={() => toggleSeries('Elevation')}
           >
             <span
               className="series-chip__led"
-              style={activeSeries.has('Elevation') ? { background: '#9d9a90' } : undefined}
+              style={activeSeries.has('Elevation') ? { background: '#7a6448', boxShadow: '0 0 5px #7a6448' } : undefined}
             />
             Elev
           </button>
@@ -192,8 +214,8 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
           <ComposedChart margin={CHART_MARGIN}>
             <defs>
               <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#d8d5cb" stopOpacity={0.85} />
-                <stop offset="100%" stopColor="#d8d5cb" stopOpacity={0.1} />
+                <stop offset="0%" stopColor="#c8b080" stopOpacity={0.7} />
+                <stop offset="100%" stopColor="#c8b080" stopOpacity={0.08} />
               </linearGradient>
             </defs>
 
@@ -234,7 +256,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
                 yAxisId="elev"
                 baseValue={minElevation - 10}
                 fill="url(#elevGradient)"
-                stroke="#9d9a90"
+                stroke="#9c8060"
                 activeDot={false}
                 strokeWidth={1}
                 dot={false}

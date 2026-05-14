@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { version } from '../package.json';
 import { parseFitFile } from './fit/fitParser';
 import { rewriteLaps } from './fit/fitWriter';
@@ -36,15 +36,15 @@ function formatPace(secondsPerKm: number): string {
 }
 
 function getExportFileName(originalName: string): string {
-  const lastDotIndex = originalName.lastIndexOf('.');
-  const baseName = lastDotIndex > 0 ? originalName.slice(0, lastDotIndex) : originalName;
-  const extension = lastDotIndex > 0 ? originalName.slice(lastDotIndex) : '';
-  const match = baseName.match(/^(.*-butterlaps)(\d*)$/);
+  const dot = originalName.lastIndexOf('.');
+  const base = dot > 0 ? originalName.slice(0, dot) : originalName;
+  const ext  = dot > 0 ? originalName.slice(dot) : '';
+  const match = base.match(/^(.*-butterlaps)(\d*)$/i);
   if (match) {
     const n = match[2] === '' ? 1 : parseInt(match[2], 10);
-    return `${match[1]}${n + 1}${extension}`;
+    return `${match[1]}${n + 1}${ext}`;
   }
-  return `${baseName}-butterlaps${extension}`;
+  return `${base}-butterlaps${ext}`;
 }
 
 // ---- Lap helpers ----
@@ -267,10 +267,40 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [theme, setTheme] = useState<ThemeSetting>('light');
+  const [exportName, setExportName] = useState('');
+  const [theme, setTheme] = useState<ThemeSetting>(() => {
+    try {
+      const stored = localStorage.getItem('butterlaps-theme');
+      if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+    } catch { /* ignore */ }
+    return 'light';
+  });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const resolved = resolveTheme(theme);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolved;
+  }, [resolved]);
+
+  useEffect(() => {
+    try { localStorage.setItem('butterlaps-theme', theme); } catch { /* ignore */ }
+  }, [theme]);
+
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => { document.documentElement.dataset.theme = resolveTheme('system'); };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!file) { setExportName(''); return; }
+    const proposed = getExportFileName(file.name);
+    const dot = proposed.lastIndexOf('.');
+    setExportName(dot > 0 ? proposed.slice(0, dot) : proposed);
+  }, [file]);
 
   const openFilePicker = () => fileInputRef.current?.click();
 
@@ -296,6 +326,7 @@ function App() {
       setActivity(parsedActivity);
       setMarkers(parsedActivity.markers);
       setZoom(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setFile(null);
       setActivity(null);
@@ -318,6 +349,7 @@ function App() {
     setMarkers([]);
     setZoom(null);
     setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeLap = (markerIndex: number) => {
@@ -353,7 +385,7 @@ function App() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = getExportFileName(file.name);
+    anchor.download = (exportName.trim() || getExportFileName(file.name).replace(/\.[^.]+$/, '')) + '.fit';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -403,12 +435,7 @@ function App() {
     ? activity.summary.activityType.charAt(0).toUpperCase() + activity.summary.activityType.slice(1)
     : null;
 
-  const exportOrigBase = file ? (() => {
-    const dot = file.name.lastIndexOf('.');
-    return dot > 0 ? file.name.slice(0, dot) : file.name;
-  })() : '';
-
-  const tableSeries = activity ? getTableSeries(activity) : [];
+const tableSeries = activity ? getTableSeries(activity) : [];
 
   return (
     <div data-theme={resolved}>
@@ -423,7 +450,7 @@ function App() {
         <span className="status-bar__spacer" />
         <button
           type="button"
-          className="theme-toggle"
+          className={`theme-toggle${theme === 'system' ? ' theme-toggle--system' : ''}`}
           onClick={() => setTheme(THEME_CYCLE[theme])}
           title={`Theme: ${theme}. Click to switch.`}
         >
@@ -436,10 +463,10 @@ function App() {
         {/* Header */}
         <header className="head">
           <h1 className="head-title">
-            Edit lap boundaries <span className="head-title__em">without</span> damaging FIT data.
+            Butter-smooth lap fixes
           </h1>
           <p className="head-lede">
-            Upload a <code>.fit</code> activity. Inspect lap boundaries on an interactive chart. Export a corrected file that preserves every byte of original FIT structure outside the laps you actually touched.
+            Fix accidental splits, missed lap presses and messy workouts without collateral damage to your FIT file
           </p>
         </header>
 
@@ -483,7 +510,12 @@ function App() {
                 <div className="loaded__file">
                   <span className="loaded__icon">▤</span>
                   <span className="loaded__name">{file.name}</span>
-                  <span className="loaded__sep">·</span>
+                  <span className="loaded__spacer" />
+                  <button type="button" className="btn-danger" onClick={handleClear}>
+                    Clear
+                  </button>
+                </div>
+                <div className="loaded__meta">
                   <span>{formatFileSize(file.size)}</span>
                   {activity.summary.startTime != null && (
                     <>
@@ -500,10 +532,8 @@ function App() {
                       </span>
                     </>
                   )}
-                  <span className="loaded__spacer" />
-                  <button type="button" className="clear-btn" onClick={handleClear}>
-                    Clear
-                  </button>
+                  <span className="loaded__sep">·</span>
+                  <span>{activity.series.length} series</span>
                 </div>
 
                 {activityMetrics && (
@@ -590,7 +620,7 @@ function App() {
                     <h2>Laps</h2>
                     <span className="table-head__count">{lapRows.length}</span>
                   </div>
-                  <button type="button" className="reset-btn" onClick={resetMarkers}>
+                  <button type="button" className="btn-danger" onClick={resetMarkers}>
                     Reset
                   </button>
                 </div>
@@ -736,12 +766,18 @@ function App() {
                     <IconDownload />
                     Export edited FIT
                   </button>
-                  {file && (
+                  {hasChanges && (
                     <div className="filename-preview">
-                      <span className="k">Output</span>
-                      {exportOrigBase}
-                      <span className="tag-suffix">-butterlaps</span>
-                      .fit
+                      <span className="k">OUTPUT:</span>
+                      <input
+                        className="filename-input"
+                        type="text"
+                        value={exportName}
+                        onChange={(e) => setExportName(e.target.value)}
+                        spellCheck={false}
+                        size={Math.max(10, exportName.length)}
+                      />
+                      <span className="filename-ext">.fit</span>
                     </div>
                   )}
                 </div>

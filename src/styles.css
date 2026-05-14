@@ -15,7 +15,7 @@
   --amber-2:   #c97328;
   --pace:      #4f3bcc;
   --power:     #c5701b;
-  --hr:        #b8321f;
+  --hr:        #8f1a1a;
   --cad:       #2e7a4e;
   --brick:     #b8321f;
   --teal:      #2e7a4e;
@@ -39,7 +39,7 @@
   --amber-2:   #ffb463;
   --pace:      #b4a4ff;
   --power:     #ffaa48;
-  --hr:        #ff5a4a;
+  --hr:        #e03535;
   --cad:       #5fd29a;
   --brick:     #ff5a4a;
   --teal:      #5fd29a;
@@ -131,6 +131,19 @@ button {
   border-color: var(--amber);
 }
 
+.theme-toggle--system {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.status-bar:hover .theme-toggle--system {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 /* ============== Page / header ============== */
 
 .page {
@@ -189,11 +202,6 @@ button {
 
 .section {
   padding: 20px 26px 22px;
-  border-top: 1px solid var(--hair);
-}
-
-.section:first-child {
-  border-top: none;
 }
 
 .section-head {
@@ -277,6 +285,10 @@ button {
   border-color: var(--amber-2);
 }
 
+[data-theme="dark"] .upload-btn {
+  color: var(--bg);
+}
+
 .upload-hint {
   font-family: "Newsreader", serif;
   font-style: italic;
@@ -319,14 +331,23 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
   font-size: 12px;
   color: var(--ink-soft);
+  min-width: 0;
 }
 
 .loaded__icon { color: var(--amber); font-size: 13px; }
-.loaded__name { color: var(--ink); font-weight: 500; }
+.loaded__name { color: var(--ink); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loaded__sep  { color: var(--ink-faint); }
+
+.loaded__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
 
 .loaded__sport {
   display: inline-flex;
@@ -342,23 +363,6 @@ button {
 }
 
 .loaded__spacer { flex: 1; }
-
-.clear-btn {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: transparent;
-  color: var(--ink-faint);
-  border: 1px solid var(--hair-2);
-  padding: 3px 9px;
-  cursor: pointer;
-}
-
-.clear-btn:hover {
-  color: var(--ink);
-  border-color: var(--hair-2);
-}
 
 /* Inline color-coded metric line */
 
@@ -429,7 +433,6 @@ button {
   grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
   grid-template-rows: auto auto auto;
   align-items: start;
-  border-top: 1px solid var(--hair);
 }
 
 .workspace__chart-area {
@@ -450,14 +453,12 @@ button {
   grid-column: 1;
   grid-row: 2;
   padding: 20px 26px 22px;
-  border-top: 1px solid var(--hair);
 }
 
 .workspace__download {
   grid-column: 1;
   grid-row: 3;
   padding: 20px 26px 22px;
-  border-top: 1px solid var(--hair);
 }
 
 /* ============== Series chip toggles ============== */
@@ -588,7 +589,7 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.reset-btn {
+.btn-danger {
   font-family: "Space Grotesk", sans-serif;
   font-size: 10.5px;
   letter-spacing: 0.12em;
@@ -600,7 +601,7 @@ button {
   cursor: pointer;
 }
 
-.reset-btn:hover {
+.btn-danger:hover {
   background: var(--brick);
   color: #fff;
 }
@@ -659,10 +660,10 @@ button {
   display: inline-block;
 }
 
-.cell-pace  { color: var(--pace);  font-weight: 500; }
-.cell-power { color: var(--power); }
-.cell-hr    { color: var(--hr); }
-.cell-cad   { color: var(--cad); }
+.lap-table .cell-pace  { color: var(--pace);  font-weight: 500; }
+.lap-table .cell-power { color: var(--power); }
+.lap-table .cell-hr    { color: var(--hr); }
+.lap-table .cell-cad   { color: var(--cad); }
 
 .col-unit {
   font-size: 0.72em;
@@ -870,6 +871,10 @@ button {
   border-color: var(--amber-2);
 }
 
+[data-theme="dark"] .export-btn {
+  color: var(--bg);
+}
+
 .export-btn:disabled {
   opacity: 0.38;
   cursor: default;
@@ -896,6 +901,27 @@ button {
 
 .tag-suffix { color: var(--amber); }
 
+.filename-input {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hair-2);
+  outline: none;
+  padding: 0 2px 1px;
+  min-width: 4ch;
+}
+
+.filename-input:focus {
+  color: var(--ink);
+  border-bottom-color: var(--amber);
+}
+
+.filename-ext {
+  color: var(--ink-faint);
+}
+
 /* ============== Compact (≤ 960 px) ============== */
 
 @media (max-width: 960px) {
@@ -911,7 +937,6 @@ button {
     grid-column: 1;
     grid-row: 2;
     border-left: none;
-    border-top: 1px solid var(--hair);
   }
 
   .workspace__review  { grid-column: 1; grid-row: 3; }

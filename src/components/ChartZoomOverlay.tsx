@@ -91,10 +91,7 @@ function TooltipText({ x, y, children }: { x: number; y: number; children: React
       textAnchor="middle"
       fontSize={10}
       fontFamily="inherit"
-      fill="#374151"
-      stroke="white"
-      strokeWidth={2.5}
-      paintOrder="stroke"
+      style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
     >
       {children}
     </text>
@@ -449,10 +446,7 @@ export function ChartZoomOverlay({
                 textAnchor={dragLabelOnLeft ? 'end' : 'start'}
                 fontSize={10}
                 fontFamily="inherit"
-                fill={label.color}
-                stroke="white"
-                strokeWidth={2.5}
-                paintOrder="stroke"
+                style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
                 {fmtValue(label.value, label.name, label.unit)}
               </text>
@@ -493,10 +487,7 @@ export function ChartZoomOverlay({
                 textAnchor={labelOnLeft ? 'end' : 'start'}
                 fontSize={10}
                 fontFamily="inherit"
-                fill={label.color}
-                stroke="white"
-                strokeWidth={2.5}
-                paintOrder="stroke"
+                style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
                 {fmtValue(label.value, label.name, label.unit)}
               </text>
