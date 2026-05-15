@@ -9,7 +9,7 @@ const XAXIS_HEIGHT = 24;
 const PLOT_HEIGHT = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom - XAXIS_HEIGHT;
 const ZOOM_PADDING = 0.10;
 
-const PRIMARY_SERIES = ['Pace', 'Power', 'Heart Rate', 'Cadence'] as const;
+const PRIMARY_SERIES = ['Pace', 'Speed', 'Power', 'Heart Rate', 'Cadence'] as const;
 
 const STORAGE_KEY = 'butterlaps-active-series';
 
@@ -31,6 +31,7 @@ function writeStoredSeries(active: Set<string>) {
 
 const SERIES_COLORS: Record<string, string> = {
   Pace: '#4f3bcc',
+  Speed: '#4f3bcc',
   'Heart Rate': '#9e2020',
   Power: '#c5701b',
   Cadence: '#2e7a4e',
@@ -38,6 +39,7 @@ const SERIES_COLORS: Record<string, string> = {
 
 const SERIES_UNITS: Record<string, string> = {
   Pace: '/km',
+  Speed: 'km/h',
   Power: 'W',
   'Heart Rate': 'bpm',
 };
@@ -49,6 +51,7 @@ function getUnit(name: string, activityType: string): string {
 
 const SERIES_YAXIS: Record<string, string> = {
   Pace: 'pace',
+  Speed: 'speed',
   'Heart Rate': 'hr',
   Power: 'power',
   Cadence: 'cadence',
@@ -99,6 +102,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
     const defaults = new Set<string>();
     if (available.has('Elevation')) defaults.add('Elevation');
     if (available.has('Pace')) defaults.add('Pace');
+    if (available.has('Speed')) defaults.add('Speed');
     return defaults;
   });
 
@@ -244,6 +248,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
 
             <YAxis yAxisId="elev" hide domain={['dataMin - 10', 'dataMax + 30']} />
             <YAxis yAxisId="pace" hide reversed domain={['auto', 'auto']} />
+            <YAxis yAxisId="speed" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="hr" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="power" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="cadence" hide domain={['auto', 'auto']} />

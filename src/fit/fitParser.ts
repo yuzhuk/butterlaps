@@ -88,7 +88,7 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, r
   return [...seen.values()].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
 }
 
-function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
+function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType: string) {
   const buildNumericSeries = (field: string) =>
     parsedRecords
       .map((record) => {
@@ -102,16 +102,16 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
       })
       .filter((item): item is { timeOffsetSeconds: number; value: number } => item !== null);
 
-  const buildPaceSeries = () =>
+  const buildSpeedOrPaceSeries = () =>
     parsedRecords
       .map((record) => {
         if (record.speed == null || record.speed <= 0 || !record.timestamp) {
           return null;
         }
-        return {
-          timeOffsetSeconds: toOffsetSeconds(record.timestamp, baselineMs),
-          value: 1000 / record.speed,
-        };
+        const value = activityType === 'cycling'
+          ? record.speed * 3.6       // km/h
+          : 1000 / record.speed;     // s/km
+        return { timeOffsetSeconds: toOffsetSeconds(record.timestamp, baselineMs), value };
       })
       .filter((item): item is { timeOffsetSeconds: number; value: number } => item !== null);
 
@@ -120,7 +120,8 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
   const distance = buildNumericSeries('distance');
   const power = buildNumericSeries('power');
   const cadence = buildNumericSeries('cadence').map((point) => ({ ...point, value: point.value * 2 }));
-  const pace = buildPaceSeries();
+  const speedOrPace = buildSpeedOrPaceSeries();
+  const speedOrPaceName = activityType === 'cycling' ? 'Speed' : 'Pace';
 
   const series = [];
   if (elevation.length > 0) {
@@ -138,8 +139,8 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
   if (cadence.length > 0) {
     series.push({ name: 'Cadence', values: cadence });
   }
-  if (pace.length > 0) {
-    series.push({ name: 'Pace', values: pace });
+  if (speedOrPace.length > 0) {
+    series.push({ name: speedOrPaceName, values: speedOrPace });
   }
 
   return series;
@@ -275,6 +276,6 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
     },
     markers: buildMarkers(parsedFit, baselineMs, records, recordTimestamps),
     recordTimestamps,
-    series: buildSeries(records, baselineMs),
+    series: buildSeries(records, baselineMs, activityType),
   };
 }

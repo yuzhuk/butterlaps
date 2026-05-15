@@ -64,11 +64,12 @@ function getLapIntervals(markers: Marker[]) {
     .filter((interval) => interval.durationSeconds > 0);
 }
 
-const SERIES_ORDER = ['Distance', 'Pace', 'Power', 'Heart Rate', 'Cadence'];
+const SERIES_ORDER = ['Distance', 'Pace', 'Speed', 'Power', 'Heart Rate', 'Cadence'];
 
 const SERIES_UNITS: Record<string, string> = {
   Distance: 'm',
   Pace: '/km',
+  Speed: 'km/h',
   Power: 'W',
   'Heart Rate': 'bpm',
 };
@@ -127,6 +128,10 @@ function getSummaryRow(activity: FitActivity, markers: Marker[]) {
         const value = totalDistance && totalDistance > 0 ? (totalDuration / totalDistance) * 1000 : null;
         return { name: series.name, value };
       }
+      if (series.name === 'Speed') {
+        const value = totalDistance && totalDuration > 0 ? (totalDistance / totalDuration) * 3.6 : null;
+        return { name: series.name, value };
+      }
       const allPoints = series.values;
       const aggregate = allPoints.length
         ? allPoints.reduce((sum, p) => sum + p.value, 0) / allPoints.length
@@ -142,6 +147,7 @@ function formatLapValue(value: number | null, metric?: string) {
     const totalSeconds = Math.round(value);
     return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
   }
+  if (metric === 'Speed') return value.toFixed(1);
   return String(Math.round(value));
 }
 
@@ -149,6 +155,7 @@ function formatLapValue(value: number | null, metric?: string) {
 
 const CELL_CLASS: Record<string, string> = {
   Pace: 'cell-pace',
+  Speed: 'cell-pace',
   Power: 'cell-power',
   'Heart Rate': 'cell-hr',
   Cadence: 'cell-cad',
@@ -156,6 +163,7 @@ const CELL_CLASS: Record<string, string> = {
 
 const TH_CLASS: Record<string, string> = {
   Pace: 'th-pace',
+  Speed: 'th-pace',
   Power: 'th-power',
   'Heart Rate': 'th-hr',
   Cadence: 'th-cad',
@@ -164,6 +172,7 @@ const TH_CLASS: Record<string, string> = {
 const COL_LABEL: Record<string, string> = {
   Distance: 'DIST',
   Pace: 'PACE',
+  Speed: 'SPD',
   Power: 'PWR',
   'Heart Rate': 'HR',
   Cadence: 'CAD',
@@ -176,6 +185,7 @@ const SERIES_SHORT: Record<string, string> = {
   Power: 'Pwr',
   Cadence: 'Cad',
   Pace: 'Pace',
+  Speed: 'Spd',
 };
 
 // ---- Theme ----
@@ -433,7 +443,9 @@ function App() {
   const activityMetrics = activity ? (() => {
     const dist = activity.summary.distanceMeters;
     const dur = activity.summary.durationSeconds;
-    const pace = dist > 0 ? (dur / dist) * 1000 : null;
+    const isCycling = activity.summary.activityType === 'cycling';
+    const pace = !isCycling && dist > 0 ? (dur / dist) * 1000 : null;
+    const speed = isCycling && dist > 0 && dur > 0 ? (dist / dur) * 3.6 : null;
 
     const avg = (name: string) => {
       const s = activity.series.find((ser) => ser.name === name);
@@ -446,6 +458,7 @@ function App() {
       distUnit: dist >= 1000 ? 'km' : 'm',
       time: formatDuration(dur),
       pace: pace != null ? formatPace(pace) : null,
+      speed: speed != null ? speed.toFixed(1) : null,
       power: avg('Power'),
       hr: avg('Heart Rate'),
       cad: avg('Cadence'),
@@ -581,6 +594,16 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                           <span className="m-k">Pace</span>
                           <span className="m-v">{activityMetrics.pace}</span>
                           <span className="m-u">/km</span>
+                        </span>
+                      </>
+                    )}
+                    {activityMetrics.speed != null && (
+                      <>
+                        <span className="metric-sep">·</span>
+                        <span className="metric metric--pace">
+                          <span className="m-k">Speed</span>
+                          <span className="m-v">{activityMetrics.speed}</span>
+                          <span className="m-u">km/h</span>
                         </span>
                       </>
                     )}
