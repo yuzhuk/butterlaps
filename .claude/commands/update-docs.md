@@ -1,4 +1,4 @@
-Review the current conversation for any decisions, changes, or additions made this session. Then read every file in `docs/` plus these root-level `.md` files (README.md, CLAUDE.md, AGENTS.md, engineering-rules.md) and update them to reflect the current state of the project.
+Review the current conversation for any decisions, changes, or additions made this session. Then read every file in `docs/` plus these root-level `.md` files (README.md, CLAUDE.md, AGENTS.md) and update them to reflect the current state of the project.
 
 Steps:
 1. Scan the session for: new features, changed behaviour, renamed/moved files, removed code, architectural decisions, new constraints or rules.

@@ -25,7 +25,7 @@ npm run test      # run Vitest tests
 - [`docs/requirements.md`](docs/requirements.md) — index of all requirement docs
 - [`docs/project-structure.md`](docs/project-structure.md) — folder layout and responsibilities
 - [`docs/tech-stack.md`](docs/tech-stack.md) — stack choices and FIT parsing/export strategy
-- [`engineering-rules.md`](engineering-rules.md) — implementation and architecture rules
+- [`CLAUDE.md`](CLAUDE.md) — architecture, engineering rules, and AI agent guidance
 
 ## License
 

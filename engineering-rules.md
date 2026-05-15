@@ -1,8 +1,0 @@
-- Use TypeScript everywhere
-- Avoid class components
-- Prefer pure functions
-- No duplicated API logic
-- One source of truth per state
-- No inline styles
-- Keep components under 250 LOC
-- Keep state in custom hooks
