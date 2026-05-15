@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { version } from '../package.json';
 import { parseFitFile, snapToNearestTimestamp } from './fit/fitParser';
-import { rewriteLaps } from './fit/fitWriter';
+import { rewriteLaps, validateFitForEditing } from './fit/fitWriter';
 import { ChartPanel } from './components/ChartPanel';
 import type { FitActivity, Marker } from './types';
 
@@ -169,6 +169,15 @@ const COL_LABEL: Record<string, string> = {
   Cadence: 'CAD',
 };
 
+const SERIES_SHORT: Record<string, string> = {
+  Elevation: 'Elev',
+  'Heart Rate': 'HR',
+  Distance: 'Dist',
+  Power: 'Pwr',
+  Cadence: 'Cad',
+  Pace: 'Pace',
+};
+
 // ---- Theme ----
 
 type ThemeSetting = 'light' | 'dark' | 'system';
@@ -322,6 +331,7 @@ function App() {
         throw new Error('Only .fit files are supported.');
       }
       const parsedActivity = await parseFitFile(selectedFile);
+      validateFitForEditing(parsedActivity);
       setFile(selectedFile);
       setActivity(parsedActivity);
       setMarkers(parsedActivity.markers);
@@ -418,6 +428,16 @@ function App() {
   })() : { removedBoundaries: [] as number[], addedBoundaries: [] as number[] };
 
   const hasChanges = removedBoundaries.length > 0 || addedBoundaries.length > 0;
+
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasChanges]);
 
   // Activity-level metrics for the inline metric line
   const activityMetrics = activity ? (() => {
@@ -528,23 +548,28 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                 </div>
                 <div className="loaded__meta">
                   <span>{formatFileSize(file.size)}</span>
+                  <span className="loaded__sep">·</span>
+                  <span>{activity.recordTimestamps.length.toLocaleString()} pts</span>
                   {activity.summary.startTime != null && (
                     <>
                       <span className="loaded__sep">·</span>
-                      <span>{formatActivityDate(activity.summary.startTime)}</span>
+                      <span><span className="loaded__k">Recorded: </span>{formatActivityDate(activity.summary.startTime)}</span>
                     </>
                   )}
                   {sport && (
                     <>
                       <span className="loaded__sep">·</span>
-                      <span className="loaded__sport">
-                        <span className="loaded__k">Sport</span>
-                        {sport}
-                      </span>
+                      <span>{sport}</span>
                     </>
                   )}
                   <span className="loaded__sep">·</span>
-                  <span>{activity.series.length} series</span>
+                  <span>
+                    <span className="loaded__k">Metrics: </span>
+                    {activity.series.map((s) => SERIES_SHORT[s.name] ?? s.name).join(' · ')}
+                    {activity.unshownSeries.length > 0 && (
+                      <span title={activity.unshownSeries.join(', ')}> · +{activity.unshownSeries.length}</span>
+                    )}
+                  </span>
                 </div>
 
                 {activityMetrics && (

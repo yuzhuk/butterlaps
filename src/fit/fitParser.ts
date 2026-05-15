@@ -176,6 +176,58 @@ function getDistanceMeters(parsedFit: any, records: Array<any>): number {
   return typeof lastRecordDistance === 'number' ? lastRecordDistance : 0;
 }
 
+// Fields we turn into series (including both regular and enhanced variants)
+const PARSED_RECORD_FIELDS = new Set([
+  'altitude', 'enhanced_altitude',
+  'heart_rate',
+  'distance',
+  'speed', 'enhanced_speed',
+  'power',
+  'cadence',
+]);
+
+// Non-chart fields to skip entirely
+const EXCLUDED_RECORD_FIELDS = new Set([
+  'timestamp', 'position_lat', 'position_long', 'compressed_speed_distance',
+]);
+
+const UNSHOWN_FIELD_LABELS: Record<string, string> = {
+  temperature:                   'Temp',
+  vertical_speed:                'Vert Speed',
+  gps_accuracy:                  'GPS Acc',
+  fractional_cadence:            'Frac Cad',
+  vertical_oscillation:          'Vert Osc',
+  stance_time:                   'GCT',
+  stance_time_percent:           'Stance %',
+  vertical_ratio:                'Vert Ratio',
+  step_length:                   'Step Length',
+  left_right_balance:            'L/R Balance',
+  saturated_hemoglobin_percent:  'SpO2',
+  total_hemoglobin_conc:         'Hemoglobin',
+  respiration_rate:              'Respiration',
+  training_load_peak:            'Training Load',
+  motor_power:                   'Motor Pwr',
+  ebike_battery_level:           'e-Battery',
+  accumulated_power:             'Accum Pwr',
+};
+
+function detectUnshownSeries(records: Array<any>): string[] {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const record of records) {
+    for (const key of Object.keys(record)) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (EXCLUDED_RECORD_FIELDS.has(key) || PARSED_RECORD_FIELDS.has(key)) continue;
+      if (typeof record[key] !== 'number') continue;
+      const label = UNSHOWN_FIELD_LABELS[key]
+        ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      if (!labels.includes(label)) labels.push(label);
+    }
+  }
+  return labels.sort();
+}
+
 export async function parseFitFile(file: File): Promise<FitActivity> {
   if (!file.name.toLowerCase().endsWith('.fit')) {
     throw new Error('Only .fit files are supported.');
@@ -205,6 +257,7 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
   return {
     fileName: file.name,
     rawFitPayload: buffer,
+    unshownSeries: detectUnshownSeries(records),
     summary: {
       durationSeconds: getDurationSeconds(parsedFit, baselineMs, records),
       distanceMeters: getDistanceMeters(parsedFit, records),

@@ -82,7 +82,7 @@ button {
   letter-spacing: 0.12em;
   color: var(--ink-soft);
   text-transform: uppercase;
-  margin-bottom: 26px;
+  margin-bottom: 18px;
 }
 
 .status-bar__brand {
@@ -153,7 +153,7 @@ button {
 }
 
 .head {
-  margin-bottom: 26px;
+  margin-bottom: 18px;
 }
 
 .head-title {
@@ -201,14 +201,14 @@ button {
 }
 
 .section {
-  padding: 20px 26px 22px;
+  padding: 14px 24px 16px;
 }
 
 .section-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .section-head__num {
@@ -438,27 +438,27 @@ button {
 .workspace__chart-area {
   grid-column: 1;
   grid-row: 1;
-  padding: 20px 26px 22px;
+  padding: 14px 24px 8px;
 }
 
 /* Laps column spans all three rows so it can bleed alongside review + download */
 .workspace__laps {
   grid-column: 2;
   grid-row: 1 / 4;
-  padding: 20px 26px 22px;
+  padding: 14px 24px 16px;
   border-left: 1px solid var(--hair);
 }
 
 .workspace__review {
   grid-column: 1;
   grid-row: 2;
-  padding: 20px 26px 22px;
+  padding: 14px 24px 16px;
 }
 
 .workspace__download {
   grid-column: 1;
   grid-row: 3;
-  padding: 20px 26px 22px;
+  padding: 14px 24px 16px;
 }
 
 /* ============== Series chip toggles ============== */
@@ -546,7 +546,7 @@ button {
 }
 
 .plot-foot {
-  margin-top: 8px;
+  margin-top: 4px;
   font-family: "Newsreader", serif;
   font-style: italic;
   font-size: 12px;
@@ -950,7 +950,7 @@ button {
   .workspace__chart-area,
   .workspace__laps,
   .workspace__review,
-  .workspace__download { padding: 18px 18px 20px; }
+  .workspace__download { padding: 12px 16px 14px; }
 
   .upload-frame { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
   .upload-hint  { flex-basis: 100%; order: 3; font-size: 14px; }

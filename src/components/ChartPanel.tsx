@@ -297,6 +297,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             onZoom={onZoom}
             onZoomReset={onZoomReset}
             hoverSeries={hoverSeriesData}
+            recordTimestamps={activity.recordTimestamps}
             markerTimes={markers.map((m) => m.timeOffsetSeconds)}
             draggableMarkerTimes={(() => {
               const startT = markers[0]?.timeOffsetSeconds ?? -1;

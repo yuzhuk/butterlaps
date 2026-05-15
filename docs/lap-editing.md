@@ -33,4 +33,5 @@ Drag a marker close to an adjacent marker to delete it.
 
 ### Snapping
 
-- snapping is not yet implemented (v0.2+)
+- cursor snap-pull applies during both marker drag and zoom drag: the position slides smoothly toward the nearest recorded data point within 30 px (quadratic ease)
+- on marker release, the marker commits to the nearest data point and the cursor immediately reflects the correct snapped position

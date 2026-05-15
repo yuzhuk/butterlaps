@@ -22,5 +22,6 @@ export type FitActivity = {
     name: string;
     values: Array<{ timeOffsetSeconds: number; value: number }>;
   }>;
+  unshownSeries: string[];
   rawFitPayload: ArrayBuffer;
 };

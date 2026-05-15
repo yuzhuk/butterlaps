@@ -44,6 +44,7 @@ Toggleable, each on its own auto-scaled Y-axis. Toggle order (left to right):
 
 - chart SVG is inert to pointer events; a transparent overlay handles all input
 - hovering shows sliding active dots on each visible series
+- cursor snap-pull: hover position slides smoothly toward the nearest recorded data point within 30 px
 - no tooltip popup, no vertical cursor line, no focus rings on SVG elements
 
 ---
@@ -55,6 +56,6 @@ Toggleable, each on its own auto-scaled Y-axis. Toggle order (left to right):
 - padding areas shown with a subtle gray veil to indicate the selection boundary
 - a new drag can start from within a veil to re-zoom without first resetting
 - minimum zoom window: 10 seconds
-- zoom boundaries snap to whole seconds
+- zoom boundaries snap to whole seconds; drag endpoints also apply snap-pull toward nearest data point
 - clicking a lap row in the table zooms the chart to that lap
 - clicking the Total/Avg footer row resets the zoom

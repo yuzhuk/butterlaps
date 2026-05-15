@@ -588,7 +588,37 @@ function patchLapMessage(
 }
 
 // ---------------------------------------------------------------------------
-// Preflight validation
+// Shared structural checks (upload-time and export-time)
+// ---------------------------------------------------------------------------
+
+function checkLapStructure(activity: FitActivity, laps: LapInfo[]): void {
+  if (!activity.summary.startTime) throw new Error('FIT file has no start time.');
+  if (activity.recordTimestamps.length === 0) throw new Error('FIT file contains no data records.');
+  if (laps.length === 0) throw new Error('FIT file contains no lap messages.');
+
+  if (laps.some((l) => l.hasDeveloperFields)) {
+    throw new Error('FIT file contains developer fields in lap messages — not supported.');
+  }
+
+  for (let i = 1; i < laps.length; i++) {
+    if (laps[i].startTimeFit <= laps[i - 1].startTimeFit) {
+      throw new Error('Lap timestamps are not strictly increasing — file may be malformed.');
+    }
+  }
+}
+
+// Called at upload time — rejects unsupported files before the user starts editing.
+export function validateFitForEditing(activity: FitActivity): void {
+  const src = new Uint8Array(activity.rawFitPayload);
+  const headerSize = src[0];
+  const dataEnd = headerSize + ru32le(src, 4);
+  const activityStartFitS = Math.round(activity.summary.startTime!) / 1000 - FIT_EPOCH_S;
+  const { laps } = scanMessages(src, headerSize, dataEnd, activityStartFitS);
+  checkLapStructure(activity, laps);
+}
+
+// ---------------------------------------------------------------------------
+// Export preflight (adds edit-state checks on top of structural checks)
 // ---------------------------------------------------------------------------
 
 function validateForExport(
@@ -596,42 +626,18 @@ function validateForExport(
   markers: Marker[],
   laps: LapInfo[],
 ): void {
-  if (!activity.summary.startTime) throw new Error('FIT file has no start time — cannot rewrite laps.');
-  if (activity.recordTimestamps.length === 0) throw new Error('FIT file contains no record messages — cannot rewrite laps.');
+  checkLapStructure(activity, laps);
 
   const intervals = getIntervals(markers);
   if (intervals.length === 0) throw new Error('No valid lap intervals defined.');
 
-  // All editable boundaries must be snapped to a record timestamp
   const recSet = new Set(activity.recordTimestamps);
-  const interior = markers.slice(1, -1);
-  for (const m of interior) {
+  for (const m of markers.slice(1, -1)) {
     if (!recSet.has(m.timeOffsetSeconds)) {
       throw new Error(`Marker at ${m.timeOffsetSeconds}s is not aligned to a record timestamp. Please reset and re-edit.`);
     }
   }
 
-  if (laps.length === 0) throw new Error('FIT file contains no lap messages.');
-
-  // Homogeneous lap definitions: all laps must share the same definition (same defStart)
-  const uniqueDefStarts = new Set(laps.map((l) => l.defStart));
-  if (uniqueDefStarts.size > 1) {
-    throw new Error('FIT file contains heterogeneous lap message definitions — not supported.');
-  }
-
-  // No developer lap fields
-  if (laps.some((l) => l.hasDeveloperFields)) {
-    throw new Error('FIT file contains developer fields in lap messages — not supported.');
-  }
-
-  // Lap start times must be strictly increasing
-  for (let i = 1; i < laps.length; i++) {
-    if (laps[i].startTimeFit <= laps[i - 1].startTimeFit) {
-      throw new Error('Original lap timestamps are not strictly increasing — file may be malformed.');
-    }
-  }
-
-  // Interval ends must be strictly increasing
   for (let i = 1; i < intervals.length; i++) {
     if (intervals[i].end <= intervals[i - 1].end) {
       throw new Error('Lap boundaries are not strictly increasing — internal state error.');
@@ -688,12 +694,16 @@ export function rewriteLaps(activity: FitActivity, currentMarkers: Marker[]): Ar
 
   // Compute how many new lap data messages will be written total
   const totalNewLaps = slots.reduce((sum, s) => sum + s.length, 0);
-  // Net size change from lap data messages
-  const lapDataDelta = (totalNewLaps - N) * lapDataMsgSize;
 
-  // The definition is written once (same size), so no size change from definition.
-  // However, if the definition was re-emitted for each local type change, we skip duplicates.
-  // For simplicity (homogeneous defs guaranteed), definition size is unchanged.
+  // Accurate size accounting.
+  // Each original lap definition is replaced by the template definition (same count, potentially
+  // different per-message sizes). Each original lap data message is replaced by 0, 1, or more
+  // new messages of template size. Definitions must all be re-written (not skipped) to preserve
+  // the local-type ownership chain in the output stream.
+  const origLapDefBytes  = laps.reduce((sum, l) => sum + (l.defEnd - l.defStart), 0);
+  const origLapDataBytes = laps.reduce((sum, l) => sum + l.dataSize + 1, 0);
+  const firstLapDefSize  = template.defEnd - template.defStart;
+  const lapDataDelta = (N * firstLapDefSize - origLapDefBytes) + (totalNewLaps * lapDataMsgSize - origLapDataBytes);
   const newDataSize = origDataSize + lapDataDelta;
   const out = new Uint8Array(headerSize + newDataSize + 2);
 
@@ -704,7 +714,6 @@ export function rewriteLaps(activity: FitActivity, currentMarkers: Marker[]): Ar
   // Single-pass assembly — walk source, writing output
   let srcPos = headerSize;
   let outPos = headerSize;
-  let lapDefWritten = false;
   let lapIndex = 0;
   let msgIndexCounter = 0;
   const localDefsWalk = new Map<number, { globalMsgNum: number; dataSize: number; defSize: number }>();
@@ -747,12 +756,12 @@ export function rewriteLaps(activity: FitActivity, currentMarkers: Marker[]): Ar
       localDefsWalk.set(localType, { globalMsgNum, dataSize, defSize });
 
       if (globalMsgNum === GMSG_LAP) {
-        if (!lapDefWritten) {
-          out.set(src.subarray(defMsgStart, srcPos), outPos);
-          outPos += defSize;
-          lapDefWritten = true;
-        }
-        // Skip subsequent lap definitions (guaranteed homogeneous)
+        // Write the template definition at every lap definition position. This is necessary
+        // because files interleave record and lap definitions on the same local type — skipping
+        // a lap definition would leave the local type owned by the preceding record definition,
+        // causing consumers to misinterpret subsequent lap data messages.
+        out.set(src.subarray(template.defStart, template.defEnd), outPos);
+        outPos += firstLapDefSize;
       } else {
         out.set(src.subarray(defMsgStart, srcPos), outPos);
         outPos += defSize;

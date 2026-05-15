@@ -9,7 +9,7 @@ Potential future activities:
 
 - alternating subtle background shading for lap regions
 - color grade based on avg pace/power (v0.2)
-- configurable snapping options for lap markers
+- configurable snap-pull threshold (currently fixed at 30 px)
 
 ## Future Business / Product
 

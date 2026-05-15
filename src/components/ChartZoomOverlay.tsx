@@ -6,6 +6,7 @@ const SNAP_TOLERANCE_SECONDS = 10;
 const CLICK_DELAY_MS = 200;
 const MARKER_HOVER_PX = 8;
 const MERGE_TOLERANCE_SECONDS = 10;
+const CURSOR_SNAP_PULL_PX = 30; // attraction radius: cursor starts drifting toward nearest data point
 
 export interface HoverSeriesInfo {
   name: string;
@@ -23,6 +24,7 @@ interface Props {
   onZoom: (start: number, end: number) => void;
   onZoomReset: () => void;
   hoverSeries: HoverSeriesInfo[];
+  recordTimestamps: number[];
   markerTimes: number[];
   draggableMarkerTimes: number[];
   onAddMarker: (t: number) => void;
@@ -30,9 +32,34 @@ interface Props {
   onMergeMarker: (draggedTime: number) => void;
 }
 
+function findNearestTimestamp(timestamps: number[], t: number): number | null {
+  if (!timestamps.length) return null;
+  let lo = 0, hi = timestamps.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (timestamps[mid] < t) lo = mid + 1; else hi = mid;
+  }
+  if (lo > 0 && Math.abs(timestamps[lo - 1] - t) < Math.abs(timestamps[lo] - t)) return timestamps[lo - 1];
+  return timestamps[lo];
+}
+
+function applySnapPull(rawPx: number, domain: [number, number], plotWidth: number, timestamps: number[]): number {
+  const span = domain[1] - domain[0];
+  if (plotWidth <= 0 || span <= 0) return rawPx;
+  const rawTime = domain[0] + (rawPx / plotWidth) * span;
+  const nearestTs = findNearestTimestamp(timestamps, rawTime);
+  if (nearestTs === null) return rawPx;
+  const nearestPx = ((nearestTs - domain[0]) / span) * plotWidth;
+  const distPx = Math.abs(rawPx - nearestPx);
+  const normalized = Math.max(0, 1 - distPx / CURSOR_SNAP_PULL_PX);
+  return rawPx + normalized * normalized * (nearestPx - rawPx);
+}
+
 interface DragState {
   startPx: number;
   currentPx: number;
+  startDisplayPx: number;
+  currentDisplayPx: number;
   hasMoved: boolean;
 }
 
@@ -40,6 +67,7 @@ interface MarkerDragState {
   originalTime: number;
   originalPx: number;
   currentPx: number;
+  currentDisplayPx: number;
   hasMoved: boolean;
   mergeTarget: number | null;
 }
@@ -115,6 +143,7 @@ export function ChartZoomOverlay({
   onZoom,
   onZoomReset,
   hoverSeries,
+  recordTimestamps,
   markerTimes,
   draggableMarkerTimes,
   onAddMarker,
@@ -129,6 +158,7 @@ export function ChartZoomOverlay({
   const [hoveredMarkerTime, setHoveredMarkerTime] = useState<number | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const isHoveringRef = useRef(false);
+  const lastClientPosRef = useRef<{ x: number; y: number } | null>(null);
   const pendingResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [flashState, setFlashState] = useState<{ cursorTime: number; closestTime: number } | null>(null);
@@ -140,6 +170,7 @@ export function ChartZoomOverlay({
   const domainRef = useRef(domain);
   const onZoomRef = useRef(onZoom);
   const onZoomResetRef = useRef(onZoomReset);
+  const recordTimestampsRef = useRef(recordTimestamps);
   const markerTimesRef = useRef(markerTimes);
   const draggableMarkerTimesRef = useRef(draggableMarkerTimes);
   const onAddMarkerRef = useRef(onAddMarker);
@@ -152,6 +183,7 @@ export function ChartZoomOverlay({
   domainRef.current = domain;
   onZoomRef.current = onZoom;
   onZoomResetRef.current = onZoomReset;
+  recordTimestampsRef.current = recordTimestamps;
   markerTimesRef.current = markerTimes;
   draggableMarkerTimesRef.current = draggableMarkerTimes;
   onAddMarkerRef.current = onAddMarker;
@@ -166,14 +198,18 @@ export function ChartZoomOverlay({
     };
 
     const handleMove = (e: MouseEvent) => {
+      lastClientPosRef.current = { x: e.clientX, y: e.clientY };
       const plotX = getPlotX(e.clientX);
 
       // Zoom drag
       const d = dragRef.current;
       if (d) {
+        const currentDisplayPx = applySnapPull(plotX, domainRef.current, plotWidthRef.current, recordTimestampsRef.current);
         const updated: DragState = {
           startPx: d.startPx,
           currentPx: plotX,
+          startDisplayPx: d.startDisplayPx,
+          currentDisplayPx,
           hasMoved: d.hasMoved || Math.abs(plotX - d.startPx) >= DRAG_THRESHOLD_PX,
         };
         dragRef.current = updated;
@@ -195,6 +231,7 @@ export function ChartZoomOverlay({
         if (idx > 0 && currentTime <= allMarkers[idx - 1]) currentTime = allMarkers[idx - 1] + 1;
         if (idx < allMarkers.length - 1 && currentTime >= allMarkers[idx + 1]) currentTime = allMarkers[idx + 1] - 1;
         const clampedPx = ((currentTime - dom[0]) / (dom[1] - dom[0])) * pw;
+        const currentDisplayPx = applySnapPull(clampedPx, dom, pw, recordTimestampsRef.current);
 
         let mergeTarget: number | null = null;
         for (const t of allMarkers) {
@@ -204,6 +241,7 @@ export function ChartZoomOverlay({
         const updated: MarkerDragState = {
           ...md,
           currentPx: clampedPx,
+          currentDisplayPx,
           hasMoved: md.hasMoved || Math.abs(clampedPx - md.originalPx) >= DRAG_THRESHOLD_PX,
           mergeTarget,
         };
@@ -216,10 +254,11 @@ export function ChartZoomOverlay({
         const rect = svgRef.current?.getBoundingClientRect();
         if (rect) {
           const y = Math.max(0, Math.min(e.clientY - rect.top - marginTopRef.current, plotHeightRef.current));
-          setHoverPos({ x: plotX, y });
-
           const dom = domainRef.current;
           const pw = plotWidthRef.current;
+          const displayX = applySnapPull(plotX, dom, pw, recordTimestampsRef.current);
+          setHoverPos({ x: displayX, y });
+
           let nearest: number | null = null;
           let nearestDist = MARKER_HOVER_PX;
           for (const t of draggableMarkerTimesRef.current) {
@@ -242,12 +281,24 @@ export function ChartZoomOverlay({
           } else {
             const dom = domainRef.current;
             const pw = plotWidthRef.current;
-            const newTime = Math.round(dom[0] + (md.currentPx / pw) * (dom[1] - dom[0]));
+            const newTime = Math.round(dom[0] + (md.currentDisplayPx / pw) * (dom[1] - dom[0]));
             if (newTime !== md.originalTime) onMoveMarkerRef.current(md.originalTime, newTime);
           }
         }
         markerDragRef.current = null;
         setMarkerDrag(null);
+        setHoveredMarkerTime(null);
+        const last = lastClientPosRef.current;
+        if (last && isHoveringRef.current) {
+          const rect = svgRef.current?.getBoundingClientRect();
+          if (rect) {
+            const plotX = Math.max(0, Math.min(last.x - rect.left - marginLeftRef.current, plotWidthRef.current));
+            const y = Math.max(0, Math.min(last.y - rect.top - marginTopRef.current, plotHeightRef.current));
+            setHoverPos({ x: applySnapPull(plotX, domainRef.current, plotWidthRef.current, recordTimestampsRef.current), y });
+          }
+        } else {
+          setHoverPos(null);
+        }
         return;
       }
 
@@ -257,8 +308,8 @@ export function ChartZoomOverlay({
       const pw = plotWidthRef.current;
 
       if (d.hasMoved) {
-        const minPx = Math.min(d.startPx, d.currentPx);
-        const maxPx = Math.max(d.startPx, d.currentPx);
+        const minPx = Math.min(d.startDisplayPx, d.currentDisplayPx);
+        const maxPx = Math.max(d.startDisplayPx, d.currentDisplayPx);
         const t1 = Math.round(dom[0] + (minPx / pw) * (dom[1] - dom[0]));
         const t2 = Math.round(dom[0] + (maxPx / pw) * (dom[1] - dom[0]));
         if (t2 - t1 >= MIN_ZOOM_SECONDS) onZoomRef.current(t1, t2);
@@ -305,14 +356,15 @@ export function ChartZoomOverlay({
         originalTime: nearestMarker,
         originalPx: markerPx,
         currentPx: markerPx,
+        currentDisplayPx: markerPx,
         hasMoved: false,
         mergeTarget: null,
       };
       markerDragRef.current = state;
       setMarkerDrag(state);
     } else {
-      // Only capture start position; React state (and visual changes) deferred until threshold crossed
-      dragRef.current = { startPx: px, currentPx: px, hasMoved: false };
+      const startDisplayPx = applySnapPull(px, domain, plotWidth, recordTimestamps);
+      dragRef.current = { startPx: px, currentPx: px, startDisplayPx, currentDisplayPx: startDisplayPx, hasMoved: false };
     }
   };
 
@@ -342,8 +394,8 @@ export function ChartZoomOverlay({
     }
   };
 
-  const selX = drag ? Math.min(drag.startPx, drag.currentPx) : 0;
-  const selW = drag ? Math.abs(drag.currentPx - drag.startPx) : 0;
+  const selX = drag ? Math.min(drag.startDisplayPx, drag.currentDisplayPx) : 0;
+  const selW = drag ? Math.abs(drag.currentDisplayPx - drag.startDisplayPx) : 0;
 
   const hoverTime = hoverPos ? domain[0] + (hoverPos.x / plotWidth) * (domain[1] - domain[0]) : null;
   const labelOnLeft = hoverPos ? hoverPos.x > plotWidth * 0.65 : false;
@@ -369,7 +421,7 @@ export function ChartZoomOverlay({
 
   // Drag marker derived values
   const dragCurrentTime = markerDrag && plotWidth > 0
-    ? domain[0] + (markerDrag.currentPx / plotWidth) * domSpan
+    ? domain[0] + (markerDrag.currentDisplayPx / plotWidth) * domSpan
     : null;
   const dragIsMerging = markerDrag?.mergeTarget != null;
 
@@ -385,8 +437,8 @@ export function ChartZoomOverlay({
   const dragPrimaryLabels = allDragLabels.filter((l) => l.name !== 'Elevation' && l.name !== 'Distance');
   const dragElevationLabel = allDragLabels.find((l) => l.name === 'Elevation') ?? null;
   const dragDistanceLabel = allDragLabels.find((l) => l.name === 'Distance') ?? null;
-  const dragLabelOnLeft = markerDrag ? markerDrag.currentPx > plotWidth * 0.65 : false;
-  const dragLabelX = markerDrag ? (dragLabelOnLeft ? markerDrag.currentPx - 6 : markerDrag.currentPx + 6) : 0;
+  const dragLabelOnLeft = markerDrag ? markerDrag.currentDisplayPx > plotWidth * 0.65 : false;
+  const dragLabelX = markerDrag ? (dragLabelOnLeft ? markerDrag.currentDisplayPx - 6 : markerDrag.currentDisplayPx + 6) : 0;
 
   const cursor = markerDrag ? 'grabbing' : hoveredMarkerTime != null ? 'grab' : 'crosshair';
 
@@ -442,16 +494,16 @@ export function ChartZoomOverlay({
         {markerDrag && dragCurrentTime != null && (
           <>
             <line
-              x1={markerDrag.currentPx} y1={0} x2={markerDrag.currentPx} y2={plotHeight}
+              x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
               stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
               strokeWidth={9} strokeOpacity={0.2}
             />
             <line
-              x1={markerDrag.currentPx} y1={0} x2={markerDrag.currentPx} y2={plotHeight}
+              x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
               stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
               strokeWidth={1.5}
             />
-            <TooltipText x={markerDrag.currentPx} y={-4} anchor={tooltipAnchor(markerDrag.currentPx, plotWidth)}>
+            <TooltipText x={markerDrag.currentDisplayPx} y={-4} anchor={tooltipAnchor(markerDrag.currentDisplayPx, plotWidth)}>
               {fmtTime(dragCurrentTime)}{dragDistanceLabel != null ? ` · ${fmtDistance(dragDistanceLabel.value)}` : ''}
             </TooltipText>
             {dragPrimaryLabels.map((label, i) => (
