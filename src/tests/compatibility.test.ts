@@ -190,6 +190,15 @@ describe('cycling – indoor trainer (no GPS/speed)', () => {
 
 // ---- swimming ----
 
+describe('swimming – pool (official SDK, protocol 2.0 header)', () => {
+  const file = 'pool-swim.fit';
+  skipIfMissing(file)('parses despite protocol 2.0 header', async () => {
+    const a = await parse(file);
+    expect(a.summary.activityType).toBe('swimming');
+    expect(a.markers.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('swimming – pool with HR', () => {
   const file = 'pool-swim-hr.fit';
   skipIfMissing(file)('parses 38-lap swim', async () => {
