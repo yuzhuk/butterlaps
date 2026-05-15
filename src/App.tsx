@@ -1,38 +1,17 @@
 import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { version } from '../package.json';
-import { parseFitFile } from './fit/fitParser';
-import { rewriteLaps } from './fit/fitWriter';
+import { parseFitFile, snapToNearestTimestamp } from './fit/fitParser';
+import { rewriteLaps, validateFitForEditing } from './fit/fitWriter';
 import { ChartPanel } from './components/ChartPanel';
+import { LapTable, getLapIntervals } from './components/LapTable';
+import { formatDuration, formatPace, formatFileSize, formatActivityDate } from './format';
 import type { FitActivity, Marker } from './types';
 
-// ---- Formatters ----
-
-function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const mm = String(minutes).padStart(2, '0');
-  const ss = String(secs).padStart(2, '0');
-  return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function formatActivityDate(ms: number): string {
-  const d = new Date(ms);
-  return d.toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function formatPace(secondsPerKm: number): string {
-  const t = Math.round(secondsPerKm);
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+function withFitCode(msg: string) {
+  const parts = msg.split('.fit');
+  return parts.map((part, i) => (
+    <span key={i}>{part}{i < parts.length - 1 && <code>.fit</code>}</span>
+  ));
 }
 
 function getExportFileName(originalName: string): string {
@@ -47,142 +26,19 @@ function getExportFileName(originalName: string): string {
   return `${base}-butterlaps${ext}`;
 }
 
-// ---- Lap helpers ----
-
-function getLapIntervals(markers: Marker[]) {
-  return markers
-    .slice(0, -1)
-    .map((marker, index) => {
-      const next = markers[index + 1];
-      return {
-        lapNumber: index + 1,
-        markerIndex: index,
-        startOffsetSeconds: marker.timeOffsetSeconds,
-        durationSeconds: next.timeOffsetSeconds - marker.timeOffsetSeconds,
-      };
-    })
-    .filter((interval) => interval.durationSeconds > 0);
-}
-
-const SERIES_ORDER = ['Distance', 'Pace', 'Power', 'Heart Rate', 'Cadence'];
-
-const SERIES_UNITS: Record<string, string> = {
-  Distance: 'm',
-  Pace: '/km',
-  Power: 'W',
-  'Heart Rate': 'bpm',
-};
-
-function getSeriesUnit(seriesName: string, activityType: string): string | undefined {
-  if (seriesName === 'Cadence') return activityType === 'running' ? 'spm' : 'rpm';
-  return SERIES_UNITS[seriesName];
-}
-
-function getTableSeries(activity: FitActivity) {
-  return activity.series
-    .filter((series) => series.name !== 'Elevation')
-    .sort((a, b) => {
-      const ai = SERIES_ORDER.indexOf(a.name);
-      const bi = SERIES_ORDER.indexOf(b.name);
-      return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
-    });
-}
-
-function buildLapRows(activity: FitActivity, markers: Marker[]) {
-  const intervals = getLapIntervals(markers);
-  const seriesList = getTableSeries(activity);
-  return intervals.map((interval, index) => ({
-    ...interval,
-    lapNumber: index + 1,
-    values: seriesList.map((series) => {
-      const points = series.values.filter(
-        (p) => p.timeOffsetSeconds >= interval.startOffsetSeconds &&
-               p.timeOffsetSeconds <= interval.startOffsetSeconds + interval.durationSeconds
-      );
-      if (series.name === 'Distance') {
-        const value = points.length > 1 ? points[points.length - 1].value - points[0].value : null;
-        return { name: series.name, value };
-      }
-      const average = points.length
-        ? points.reduce((sum, p) => sum + p.value, 0) / points.length
-        : null;
-      return { name: series.name, value: average };
-    }),
-  }));
-}
-
-function getSummaryRow(activity: FitActivity, markers: Marker[]) {
-  const seriesList = getTableSeries(activity);
-  const lapRows = buildLapRows(activity, markers);
-  const totalDuration = lapRows.reduce((sum, row) => sum + row.durationSeconds, 0);
-  const distanceSeries = activity.series.find((s) => s.name === 'Distance');
-  const totalDistance = distanceSeries && distanceSeries.values.length > 1
-    ? distanceSeries.values[distanceSeries.values.length - 1].value - distanceSeries.values[0].value
-    : null;
-  return {
-    durationSeconds: totalDuration,
-    values: seriesList.map((series) => {
-      if (series.name === 'Distance') return { name: series.name, value: totalDistance };
-      if (series.name === 'Pace') {
-        const value = totalDistance && totalDistance > 0 ? (totalDuration / totalDistance) * 1000 : null;
-        return { name: series.name, value };
-      }
-      const allPoints = series.values;
-      const aggregate = allPoints.length
-        ? allPoints.reduce((sum, p) => sum + p.value, 0) / allPoints.length
-        : null;
-      return { name: series.name, value: aggregate };
-    }),
-  };
-}
-
-function formatLapValue(value: number | null, metric?: string) {
-  if (value == null) return '—';
-  if (metric === 'Pace') {
-    const totalSeconds = Math.round(value);
-    return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
-  }
-  return String(Math.round(value));
-}
-
-// ---- Series cell/header class maps ----
-
-const CELL_CLASS: Record<string, string> = {
-  Pace: 'cell-pace',
-  Power: 'cell-power',
-  'Heart Rate': 'cell-hr',
-  Cadence: 'cell-cad',
-};
-
-const TH_CLASS: Record<string, string> = {
-  Pace: 'th-pace',
-  Power: 'th-power',
-  'Heart Rate': 'th-hr',
-  Cadence: 'th-cad',
-};
-
-const COL_LABEL: Record<string, string> = {
-  Distance: 'DIST',
-  Pace: 'PACE',
-  Power: 'PWR',
+const SERIES_SHORT: Record<string, string> = {
+  Elevation: 'Elev',
   'Heart Rate': 'HR',
-  Cadence: 'CAD',
+  Distance: 'Dist',
+  Power: 'Pwr',
+  Cadence: 'Cad',
+  Pace: 'Pace',
+  Speed: 'Spd',
 };
 
 // ---- Theme ----
 
 type ThemeSetting = 'light' | 'dark' | 'system';
-
-function resolveTheme(setting: ThemeSetting): 'light' | 'dark' {
-  if (setting === 'system') {
-    try {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } catch {
-      return 'light';
-    }
-  }
-  return setting;
-}
 
 const THEME_CYCLE: Record<ThemeSetting, ThemeSetting> = {
   light: 'dark',
@@ -275,9 +131,17 @@ function App() {
     } catch { /* ignore */ }
     return 'light';
   });
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const resolved = resolveTheme(theme);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const resolved: 'light' | 'dark' = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
@@ -285,14 +149,6 @@ function App() {
 
   useEffect(() => {
     try { localStorage.setItem('butterlaps-theme', theme); } catch { /* ignore */ }
-  }, [theme]);
-
-  useEffect(() => {
-    if (theme !== 'system') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => { document.documentElement.dataset.theme = resolveTheme('system'); };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
   }, [theme]);
 
   useEffect(() => {
@@ -319,9 +175,10 @@ function App() {
     setIsLoading(true);
     try {
       if (!selectedFile.name.toLowerCase().endsWith('.fit')) {
-        throw new Error('Only .fit files are supported.');
+        throw new Error('Only .fit files are supported');
       }
       const parsedActivity = await parseFitFile(selectedFile);
+      validateFitForEditing(parsedActivity);
       setFile(selectedFile);
       setActivity(parsedActivity);
       setMarkers(parsedActivity.markers);
@@ -332,7 +189,7 @@ function App() {
       setActivity(null);
       setMarkers([]);
       setZoom(null);
-      setError(err instanceof Error ? err.message : 'Unable to read the uploaded file.');
+      setError(err instanceof Error ? err.message : 'Unable to read the uploaded file');
     } finally {
       setIsLoading(false);
     }
@@ -357,17 +214,22 @@ function App() {
   };
 
   const addMarker = (timeOffsetSeconds: number) => {
+    if (!activity) return;
+    const snapped = snapToNearestTimestamp(timeOffsetSeconds, activity.recordTimestamps);
     setMarkers((prev) => {
-      const newMarker = { timeOffsetSeconds, label: 'Lap' };
-      return [...prev, newMarker].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
+      if (prev.some((m) => m.timeOffsetSeconds === snapped)) return prev;
+      return [...prev, { timeOffsetSeconds: snapped, label: 'Lap' }].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
     });
   };
 
   const moveMarker = (originalTime: number, newTime: number) => {
-    setMarkers((prev) =>
-      prev.map((m) => m.timeOffsetSeconds === originalTime ? { ...m, timeOffsetSeconds: newTime } : m)
-        .sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds)
-    );
+    if (!activity) return;
+    const snapped = snapToNearestTimestamp(newTime, activity.recordTimestamps);
+    setMarkers((prev) => {
+      if (prev.some((m) => m.timeOffsetSeconds === snapped && m.timeOffsetSeconds !== originalTime)) return prev;
+      return prev.map((m) => m.timeOffsetSeconds === originalTime ? { ...m, timeOffsetSeconds: snapped } : m)
+        .sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
+    });
   };
 
   const mergeMarker = (draggedTime: number) => {
@@ -375,12 +237,18 @@ function App() {
   };
 
   const resetMarkers = () => {
-    if (activity) setMarkers(activity.markers);
+    if (file) loadFile(file);
   };
 
   const handleExport = () => {
     if (!file || !activity) return;
-    const payload = rewriteLaps(activity, markers);
+    let payload: ArrayBuffer;
+    try {
+      payload = rewriteLaps(activity, markers);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+      return;
+    }
     const blob = new Blob([payload], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -394,11 +262,7 @@ function App() {
 
   // ---- Derived state ----
 
-  const lapRows = activity ? buildLapRows(activity, markers) : [];
-  const summaryRow = activity ? getSummaryRow(activity, markers) : null;
   const originalLapCount = activity ? getLapIntervals(activity.markers).length : 0;
-  const hasChanges = activity ? lapRows.length !== originalLapCount : false;
-
   const { removedBoundaries, addedBoundaries } = activity ? (() => {
     const originalStarts = new Set(getLapIntervals(activity.markers).slice(1).map((iv) => iv.startOffsetSeconds));
     const currentStarts = new Set(getLapIntervals(markers).slice(1).map((iv) => iv.startOffsetSeconds));
@@ -408,16 +272,30 @@ function App() {
     };
   })() : { removedBoundaries: [] as number[], addedBoundaries: [] as number[] };
 
-  // Activity-level metrics for the inline metric line
+  const hasChanges = removedBoundaries.length > 0 || addedBoundaries.length > 0;
+
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasChanges]);
+
   const activityMetrics = activity ? (() => {
     const dist = activity.summary.distanceMeters;
     const dur = activity.summary.durationSeconds;
-    const pace = dist > 0 ? (dur / dist) * 1000 : null;
+    const isCycling = activity.summary.activityType === 'cycling';
+    const pace = !isCycling && dist > 0 ? (dur / dist) * 1000 : null;
+    const speed = isCycling && dist > 0 && dur > 0 ? (dist / dur) * 3.6 : null;
 
     const avg = (name: string) => {
       const s = activity.series.find((ser) => ser.name === name);
-      if (!s || !s.values.length) return null;
-      return s.values.reduce((sum, v) => sum + v.value, 0) / s.values.length;
+      if (!s) return null;
+      const nonNull = s.values.filter((v): v is { timeOffsetSeconds: number; value: number } => v.value !== null);
+      return nonNull.length ? nonNull.reduce((sum, v) => sum + v.value, 0) / nonNull.length : null;
     };
 
     return {
@@ -425,6 +303,7 @@ function App() {
       distUnit: dist >= 1000 ? 'km' : 'm',
       time: formatDuration(dur),
       pace: pace != null ? formatPace(pace) : null,
+      speed: speed != null ? speed.toFixed(1) : null,
       power: avg('Power'),
       hr: avg('Heart Rate'),
       cad: avg('Cadence'),
@@ -434,8 +313,6 @@ function App() {
   const sport = activity?.summary.activityType
     ? activity.summary.activityType.charAt(0).toUpperCase() + activity.summary.activityType.slice(1)
     : null;
-
-const tableSeries = activity ? getTableSeries(activity) : [];
 
   return (
     <div data-theme={resolved}>
@@ -466,7 +343,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
             Butter-smooth lap fixes
           </h1>
           <p className="head-lede">
-            Fix accidental splits, missed lap presses and messy workouts without collateral damage to your FIT file
+            Fix accidental splits and missed lap presses without collateral damage to your <code>.fit</code> file
           </p>
         </header>
 
@@ -492,7 +369,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
               />
               <button type="button" className="upload-btn" onClick={openFilePicker}>
                 <IconUpload />
-                Load .FIT file
+                Load .fit file
               </button>
               <span className="upload-hint">or drag and drop a .fit file here</span>
               <span className="upload-spec">
@@ -502,7 +379,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
               </span>
             </div>
 
-            {error && <div className="alert">{error}</div>}
+            {error && <div className="alert">{withFitCode(error)}</div>}
             {isLoading && <div className="alert">Loading…</div>}
 
             {file && activity && (
@@ -511,29 +388,39 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                   <span className="loaded__icon">▤</span>
                   <span className="loaded__name">{file.name}</span>
                   <span className="loaded__spacer" />
-                  <button type="button" className="btn-danger" onClick={handleClear}>
-                    Clear
-                  </button>
+                  <button type="button" className="btn-danger" onClick={handleClear}>Clear</button>
                 </div>
                 <div className="loaded__meta">
                   <span>{formatFileSize(file.size)}</span>
+                  <span className="loaded__sep">·</span>
+                  <span>{activity.recordTimestamps.length.toLocaleString()} pts</span>
                   {activity.summary.startTime != null && (
                     <>
                       <span className="loaded__sep">·</span>
-                      <span>{formatActivityDate(activity.summary.startTime)}</span>
+                      <span><span className="loaded__k">Recorded: </span>{formatActivityDate(activity.summary.startTime)}</span>
                     </>
                   )}
                   {sport && (
                     <>
                       <span className="loaded__sep">·</span>
-                      <span className="loaded__sport">
-                        <span className="loaded__k">Sport</span>
-                        {sport}
-                      </span>
+                      <span>{sport}</span>
                     </>
                   )}
                   <span className="loaded__sep">·</span>
-                  <span>{activity.series.length} series</span>
+                  <span>
+                    <span className="loaded__k">Metrics: </span>
+                    {activity.series.map((s) => SERIES_SHORT[s.name] ?? s.name).join(' · ')}
+                    {activity.unshownSeries.length > 0 && (
+                      <> · <span className="unshown-pill">
+                        +{activity.unshownSeries.length} not shown
+                        <span className="unshown-tooltip">
+                          {activity.unshownSeries.map((name) => (
+                            <span key={name} className="unshown-tooltip__row">{name}</span>
+                          ))}
+                        </span>
+                      </span></>
+                    )}
+                  </span>
                 </div>
 
                 {activityMetrics && (
@@ -555,6 +442,16 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                           <span className="m-k">Pace</span>
                           <span className="m-v">{activityMetrics.pace}</span>
                           <span className="m-u">/km</span>
+                        </span>
+                      </>
+                    )}
+                    {activityMetrics.speed != null && (
+                      <>
+                        <span className="metric-sep">·</span>
+                        <span className="metric metric--pace">
+                          <span className="m-k">Speed</span>
+                          <span className="m-v">{activityMetrics.speed}</span>
+                          <span className="m-u">km/h</span>
                         </span>
                       </>
                     )}
@@ -615,88 +512,20 @@ const tableSeries = activity ? getTableSeries(activity) : [];
 
               {/* Right col — laps (spans rows 1–3 in wide mode) */}
               <div className="workspace__laps">
-                <div className="table-head">
-                  <div className="table-head__title">
-                    <h2>Laps</h2>
-                    <span className="table-head__count">{lapRows.length}</span>
-                  </div>
-                  <button type="button" className="btn-danger" onClick={resetMarkers}>
-                    Reset
-                  </button>
-                </div>
-                <div className="table-scroll">
-                  <table className="lap-table">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Start</th>
-                        <th>Dur</th>
-                        {tableSeries.map((series) => (
-                          <th key={series.name} className={TH_CLASS[series.name] ?? ''}>
-                            {COL_LABEL[series.name] ?? series.name}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lapRows.map((row, index) => (
-                        <tr
-                          key={row.lapNumber}
-                          onClick={() => setZoom({ start: row.startOffsetSeconds, end: row.startOffsetSeconds + row.durationSeconds })}
-                        >
-                          <td>
-                            <span className="lap-num-text">L{String(row.lapNumber).padStart(2, '0')}</span>
-                            {index < lapRows.length - 1 && (
-                              <button
-                                type="button"
-                                className="lap-merge-btn"
-                                title="Merge with next lap"
-                                aria-label={`Merge lap ${row.lapNumber} with lap ${lapRows[index + 1].lapNumber}`}
-                                onClick={(e) => { e.stopPropagation(); removeLap(lapRows[index + 1].markerIndex); }}
-                              >
-                                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-                                  <path d="M1.5 1.5 L7.5 7.5" />
-                                  <path d="M7.5 1.5 L1.5 7.5" />
-                                </svg>
-                              </button>
-                            )}
-                          </td>
-                          <td>{formatDuration(row.startOffsetSeconds)}</td>
-                          <td>{formatDuration(row.durationSeconds)}</td>
-                          {row.values.map((value) => (
-                            <td key={value.name} className={CELL_CLASS[value.name] ?? ''}>
-                              {formatLapValue(value.value, value.name)}
-                              {value.value != null && getSeriesUnit(value.name, activity.summary.activityType) && (
-                                <span className="col-unit">{getSeriesUnit(value.name, activity.summary.activityType)}</span>
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                    {summaryRow && (
-                      <tfoot>
-                        <tr onClick={() => setZoom(null)}>
-                          <td colSpan={2}>Σ Total / Avg</td>
-                          <td>{formatDuration(summaryRow.durationSeconds)}</td>
-                          {summaryRow.values.map((value) => (
-                            <td key={value.name} className={CELL_CLASS[value.name] ?? ''}>
-                              {formatLapValue(value.value, value.name)}
-                              {value.value != null && getSeriesUnit(value.name, activity.summary.activityType) && (
-                                <span className="col-unit">{getSeriesUnit(value.name, activity.summary.activityType)}</span>
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      </tfoot>
-                    )}
-                  </table>
-                </div>
+                <SectionHead num="03" label="Laps" />
+                <LapTable
+                  activity={activity}
+                  markers={markers}
+                  onMergeLap={removeLap}
+                  onSelectLap={(start, end) => setZoom({ start, end })}
+                  onClearZoom={() => setZoom(null)}
+                  onReset={resetMarkers}
+                />
               </div>
 
-              {/* Left col row 2 — 03 Review */}
+              {/* Left col row 2 — 04 Review */}
               <div className="workspace__review">
-                <SectionHead num="03" label="Review" />
+                <SectionHead num="04" label="Review" />
                 {hasChanges ? (
                   <div className="review">
                     <div className="review__delta">
@@ -715,7 +544,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                       <span className="delta__count">
                         <span>{originalLapCount}</span>
                         <span className="arrow">→</span>
-                        <span className="after">{lapRows.length}</span>
+                        <span className="after">{getLapIntervals(markers).length}</span>
                         <span className="lbl">laps</span>
                       </span>
                     </div>
@@ -753,9 +582,9 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                 )}
               </div>
 
-              {/* Left col row 3 — 04 Download */}
+              {/* Left col row 3 — 05 Download */}
               <div className="workspace__download">
-                <SectionHead num="04" label="Download" />
+                <SectionHead num="05" label="Download" />
                 <div className="download">
                   <button
                     type="button"
@@ -764,7 +593,7 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                     disabled={!hasChanges}
                   >
                     <IconDownload />
-                    Export edited FIT
+                    Export edited .fit
                   </button>
                   {hasChanges && (
                     <div className="filename-preview">

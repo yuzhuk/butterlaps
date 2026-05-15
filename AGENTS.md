@@ -40,6 +40,5 @@ This repository is a small React + TypeScript browser app for editing lap bounda
 
 - `docs/overview.md` — product summary, principles, built vs planned scope.
 - `docs/requirements.md` — index of all requirement docs.
-- `project-structure.md` — folder layout and responsibilities.
-- `data-model.md` — core domain model concepts.
-- `engineering-rules.md` — implementation and architecture rules.
+- `docs/project-structure.md` — folder layout and responsibilities.
+- `CLAUDE.md` — architecture constraints, engineering rules, and testing notes.

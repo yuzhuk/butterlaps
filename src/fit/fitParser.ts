@@ -1,6 +1,21 @@
 import FitParser from 'fit-file-parser';
 import type { FitActivity, Marker } from '../types';
 
+export function snapToNearestTimestamp(t: number, timestamps: number[]): number {
+  if (timestamps.length === 0) return t;
+  let lo = 0;
+  let hi = timestamps.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (timestamps[mid] < t) lo = mid + 1;
+    else hi = mid;
+  }
+  if (lo > 0 && Math.abs(timestamps[lo - 1] - t) < Math.abs(timestamps[lo] - t)) {
+    return timestamps[lo - 1];
+  }
+  return timestamps[lo];
+}
+
 function getBaseTime(records: Array<any>, laps: Array<any> | undefined): number {
   if (records.length > 0 && records[0]?.timestamp) {
     const timestamp = Date.parse(records[0].timestamp);
@@ -27,7 +42,22 @@ function toOffsetSeconds(timestamp: string, baselineMs: number): number {
   return Math.max(0, Math.round((timeMs - baselineMs) / 1000));
 }
 
-function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>): Marker[] {
+function buildRecordTimestamps(records: Array<any>, baselineMs: number): number[] {
+  const seen = new Set<number>();
+  const result: number[] = [];
+  for (const record of records) {
+    if (!record.timestamp) continue;
+    const offset = toOffsetSeconds(record.timestamp, baselineMs);
+    if (!seen.has(offset)) {
+      seen.add(offset);
+      result.push(offset);
+    }
+  }
+  result.sort((a, b) => a - b);
+  return result;
+}
+
+function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, recordTimestamps: number[], durationSeconds: number): Marker[] {
   const markers: Marker[] = [{ timeOffsetSeconds: 0, label: 'Start' }];
 
   if (Array.isArray(parsedFit.laps)) {
@@ -35,22 +65,48 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>): 
       if (!lap?.start_time) {
         return;
       }
-      const offset = toOffsetSeconds(lap.start_time, baselineMs);
-      markers.push({ timeOffsetSeconds: offset, label: `Lap ${index + 1}` });
+      const rawOffset = toOffsetSeconds(lap.start_time, baselineMs);
+      const snapped = snapToNearestTimestamp(rawOffset, recordTimestamps);
+      if (snapped > 0) {
+        markers.push({ timeOffsetSeconds: snapped, label: `Lap ${index + 1}` });
+      }
     });
   }
 
-  if (records.length > 0) {
-    const finishOffset = toOffsetSeconds(records[records.length - 1].timestamp, baselineMs);
-    if (!markers.some((marker) => marker.timeOffsetSeconds === finishOffset)) {
-      markers.push({ timeOffsetSeconds: finishOffset, label: 'Finish' });
-    }
+  const finishOffset = durationSeconds > 0
+    ? durationSeconds
+    : records.length > 0 ? toOffsetSeconds(records[records.length - 1].timestamp, baselineMs) : 0;
+
+  if (finishOffset > 0 && !markers.some((marker) => marker.timeOffsetSeconds === finishOffset)) {
+    markers.push({ timeOffsetSeconds: finishOffset, label: 'Finish' });
   }
 
-  return markers.sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
+  // Dedup by timeOffsetSeconds, keeping first occurrence, then sort
+  const seen = new Map<number, Marker>();
+  for (const m of markers) {
+    if (!seen.has(m.timeOffsetSeconds)) seen.set(m.timeOffsetSeconds, m);
+  }
+  return [...seen.values()].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
 }
 
-function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
+// Inserts a null sentinel after any point whose successor is more than this many
+// seconds away, so Recharts breaks the line instead of drawing a diagonal.
+const GAP_BREAK_SECONDS = 5;
+
+function withGapBreaks(
+  series: Array<{ timeOffsetSeconds: number; value: number | null }>,
+): Array<{ timeOffsetSeconds: number; value: number | null }> {
+  const result: Array<{ timeOffsetSeconds: number; value: number | null }> = [];
+  for (let i = 0; i < series.length; i++) {
+    result.push(series[i]);
+    if (i + 1 < series.length && series[i + 1].timeOffsetSeconds - series[i].timeOffsetSeconds > GAP_BREAK_SECONDS) {
+      result.push({ timeOffsetSeconds: series[i].timeOffsetSeconds + 1, value: null });
+    }
+  }
+  return result;
+}
+
+function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType: string) {
   const buildNumericSeries = (field: string) =>
     parsedRecords
       .map((record) => {
@@ -64,44 +120,57 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number) {
       })
       .filter((item): item is { timeOffsetSeconds: number; value: number } => item !== null);
 
-  const buildPaceSeries = () =>
+  const buildSpeedOrPaceSeries = () =>
     parsedRecords
       .map((record) => {
-        if (record.speed == null || record.speed <= 0 || !record.timestamp) {
-          return null;
-        }
-        return {
-          timeOffsetSeconds: toOffsetSeconds(record.timestamp, baselineMs),
-          value: 1000 / record.speed,
-        };
+        const speed = record.speed ?? record.enhanced_speed;
+        if (speed == null || !record.timestamp) return null;
+        const t = toOffsetSeconds(record.timestamp, baselineMs);
+        if (speed <= 0) return { timeOffsetSeconds: t, value: null };
+        const value = activityType === 'cycling'
+          ? speed * 3.6       // km/h
+          : 1000 / speed;     // s/km
+        return { timeOffsetSeconds: t, value };
+      })
+      .filter((item): item is { timeOffsetSeconds: number; value: number | null } => item !== null);
+
+  // Garmin native Running Power uses a developer field named 'Power' (capital P);
+  // Stryd and others use the standard 'power' field. Try both.
+  const buildPowerSeries = () =>
+    parsedRecords
+      .map((record) => {
+        const value = record.power ?? record['Power'];
+        if (value == null || !record.timestamp) return null;
+        return { timeOffsetSeconds: toOffsetSeconds(record.timestamp, baselineMs), value };
       })
       .filter((item): item is { timeOffsetSeconds: number; value: number } => item !== null);
 
   const elevation = buildNumericSeries('altitude');
   const heartRate = buildNumericSeries('heart_rate');
   const distance = buildNumericSeries('distance');
-  const power = buildNumericSeries('power');
+  const power = buildPowerSeries();
   const cadence = buildNumericSeries('cadence').map((point) => ({ ...point, value: point.value * 2 }));
-  const pace = buildPaceSeries();
+  const speedOrPace = buildSpeedOrPaceSeries();
+  const speedOrPaceName = activityType === 'cycling' ? 'Speed' : 'Pace';
 
   const series = [];
   if (elevation.length > 0) {
-    series.push({ name: 'Elevation', values: elevation });
+    series.push({ name: 'Elevation', values: withGapBreaks(elevation) });
   }
   if (heartRate.length > 0) {
-    series.push({ name: 'Heart Rate', values: heartRate });
+    series.push({ name: 'Heart Rate', values: withGapBreaks(heartRate) });
   }
   if (distance.length > 0) {
     series.push({ name: 'Distance', values: distance });
   }
   if (power.length > 0) {
-    series.push({ name: 'Power', values: power });
+    series.push({ name: 'Power', values: withGapBreaks(power) });
   }
   if (cadence.length > 0) {
-    series.push({ name: 'Cadence', values: cadence });
+    series.push({ name: 'Cadence', values: withGapBreaks(cadence) });
   }
-  if (pace.length > 0) {
-    series.push({ name: 'Pace', values: pace });
+  if (speedOrPace.length > 0) {
+    series.push({ name: speedOrPaceName, values: withGapBreaks(speedOrPace) });
   }
 
   return series;
@@ -138,14 +207,68 @@ function getDistanceMeters(parsedFit: any, records: Array<any>): number {
   return typeof lastRecordDistance === 'number' ? lastRecordDistance : 0;
 }
 
+// Fields we turn into series (including both regular and enhanced variants)
+const PARSED_RECORD_FIELDS = new Set([
+  'altitude', 'enhanced_altitude',
+  'heart_rate',
+  'distance',
+  'speed', 'enhanced_speed',
+  'power', 'Power',  // 'Power' is Garmin native Running Power developer field
+  'cadence',
+]);
+
+// Non-chart fields to skip entirely
+const EXCLUDED_RECORD_FIELDS = new Set([
+  'timestamp', 'position_lat', 'position_long', 'compressed_speed_distance',
+  'elapsed_time', 'timer_time',  // internal per-record timing, not user metrics
+]);
+
+const UNSHOWN_FIELD_LABELS: Record<string, string> = {
+  temperature:                   'Temperature',
+  vertical_speed:                'Vertical Speed',
+  gps_accuracy:                  'GPS Accuracy',
+  fractional_cadence:            'Fractional Cadence',
+  vertical_oscillation:          'Vertical Oscillation',
+  stance_time:                   'Ground Contact Time',
+  stance_time_balance:           'GCT Balance',
+  stance_time_percent:           'GCT %',
+  vertical_ratio:                'Vertical Ratio',
+  step_length:                   'Stride Length',
+  left_right_balance:            'L/R Balance',
+  saturated_hemoglobin_percent:  'SpO₂',
+  total_hemoglobin_conc:         'Hemoglobin',
+  respiration_rate:              'Breathing Rate',
+  training_load_peak:            'Training Load',
+  motor_power:                   'Motor Power',
+  ebike_battery_level:           'Battery',
+  accumulated_power:             'Accumulated Power',
+};
+
+function detectUnshownSeries(records: Array<any>): string[] {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const record of records) {
+    for (const key of Object.keys(record)) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (EXCLUDED_RECORD_FIELDS.has(key) || PARSED_RECORD_FIELDS.has(key)) continue;
+      if (typeof record[key] !== 'number') continue;
+      const label = UNSHOWN_FIELD_LABELS[key]
+        ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      if (!labels.includes(label)) labels.push(label);
+    }
+  }
+  return labels.sort();
+}
+
 export async function parseFitFile(file: File): Promise<FitActivity> {
   if (!file.name.toLowerCase().endsWith('.fit')) {
-    throw new Error('Only .fit files are supported.');
+    throw new Error('Only .fit files are supported');
   }
 
   const buffer = await file.arrayBuffer();
   if (buffer.byteLength === 0) {
-    throw new Error('The uploaded FIT file is empty or corrupted.');
+    throw new Error('The uploaded .fit file is empty or corrupted');
   }
 
   const parser = new FitParser({ mode: 'both' });
@@ -157,24 +280,61 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
   const records = topLevelRecords.length > 0 ? topLevelRecords : lapRecords;
   const baselineMs = getBaseTime(records, parsedFit.laps);
 
+  const sessions: Array<any> = parsedFit.sessions ?? parsedFit.activity?.sessions ?? [];
+  if (sessions.length > 1) {
+    throw new Error('Multisport activities are not supported. Upload each sport segment as a separate file.');
+  }
+
   const activityType: string =
-    parsedFit.sessions?.[0]?.sport ??
-    parsedFit.activity?.sessions?.[0]?.sport ??
+    sessions[0]?.sport ??
     'generic';
+
+  const SUPPORTED_SPORTS = new Set(['running', 'cycling', 'swimming', 'walking', 'hiking']);
+  if (!SUPPORTED_SPORTS.has(activityType)) {
+    const label = activityType === 'generic' ? 'Unknown' : activityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    throw new Error(`${label} activities are not supported. ButterLaps accepts running, walking, hiking, cycling, and swimming.`);
+  }
+
+  const durationSeconds = getDurationSeconds(parsedFit, baselineMs, records);
+
+  // Some apps (e.g. Strava Android) append a stray sentinel record with a timestamp
+  // decades in the future. Drop any record whose offset exceeds the declared duration
+  // by more than 30 seconds so it can't corrupt the chart domain or marker positions.
+  const trimmedRecords = durationSeconds > 0
+    ? records.filter((r) => {
+        if (!r.timestamp) return true;
+        return toOffsetSeconds(r.timestamp, baselineMs) <= durationSeconds + 30;
+      })
+    : records;
+
+  const recordTimestamps = buildRecordTimestamps(trimmedRecords, baselineMs);
+
+  const allSeries = buildSeries(trimmedRecords, baselineMs, activityType);
+
+  // Elevation is meaningless for swimming (pool/open water GPS drift).
+  // Keep the data in unshownSeries so the UI can acknowledge it exists.
+  let series = allSeries;
+  let swimUnshown: string[] = [];
+  if (activityType === 'swimming' && allSeries.some((s) => s.name === 'Elevation')) {
+    series = allSeries.filter((s) => s.name !== 'Elevation');
+    swimUnshown = ['Elevation'];
+  }
 
   return {
     fileName: file.name,
     rawFitPayload: buffer,
+    unshownSeries: [...swimUnshown, ...detectUnshownSeries(trimmedRecords)],
     summary: {
-      durationSeconds: getDurationSeconds(parsedFit, baselineMs, records),
-      distanceMeters: getDistanceMeters(parsedFit, records),
-      hasHeartRate: records.some((record) => record.heart_rate != null),
-      hasPower: records.some((record) => record.power != null),
-      hasCadence: records.some((record) => record.cadence != null),
+      durationSeconds,
+      distanceMeters: getDistanceMeters(parsedFit, trimmedRecords),
+      hasHeartRate: trimmedRecords.some((record) => record.heart_rate != null),
+      hasPower: trimmedRecords.some((record) => record.power != null || (record as unknown as Record<string, unknown>)['Power'] != null),
+      hasCadence: trimmedRecords.some((record) => record.cadence != null),
       activityType,
       startTime: baselineMs > 0 ? baselineMs : null,
     },
-    markers: buildMarkers(parsedFit, baselineMs, records),
-    series: buildSeries(records, baselineMs),
+    markers: buildMarkers(parsedFit, baselineMs, trimmedRecords, recordTimestamps, durationSeconds),
+    recordTimestamps,
+    series,
   };
 }

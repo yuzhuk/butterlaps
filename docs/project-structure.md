@@ -13,11 +13,8 @@
 ├── CLAUDE.md
 ├── AGENTS.md
 ├── engineering-rules.md
-├── tech-stack.md
-├── data-model.md           ← original draft type definitions
-├── project-structure.md    ← this file
 ├── design/                 ← design mockups and reference assets
-├── docs/                   ← requirements and design docs
+├── docs/                   ← requirements, design docs, and project reference
 │   ├── requirements.md     ← index
 │   ├── overview.md
 │   ├── upload.md
@@ -26,18 +23,22 @@
 │   ├── lap-editing.md
 │   ├── lap-table.md
 │   ├── export.md
-│   └── future.md
+│   ├── future.md
+│   ├── tech-stack.md
+│   └── project-structure.md  ← this file
 ├── test-artifacts/         ← Playwright scripts and screenshots (gitignored)
 ├── test-data/              ← sample .fit files for tests (gitignored)
 └── src
     ├── main.tsx
     ├── App.tsx
+    ├── format.ts           — pure formatter functions (duration, pace, file size, date)
     ├── styles.css
     ├── types.ts
     ├── fit/
     │   ├── fitParser.ts    — parses ArrayBuffer → FitActivity
     │   └── fitWriter.ts    — rewrites lap messages in raw FIT bytes
     ├── components/
+    │   ├── LapTable.tsx    — lap table, merge button, lap interval helpers
     │   ├── ChartPanel.tsx
     │   └── ChartZoomOverlay.tsx
     └── tests/
@@ -47,9 +48,10 @@
 ## Purpose of each area
 
 - `src/fit` — FIT-specific parsing, writing, and integrity logic, isolated from UI
-- `src/components` — UI components; ChartPanel and its zoom/marker overlay
+- `src/components` — UI components; lap table, chart panel, and zoom/marker overlay
+- `src/format.ts` — pure formatter functions shared across components
 - `src/tests` — Vitest unit tests
 - `test-artifacts/` — Playwright visual test scripts and screenshots (gitignored)
 - `test-data/` — sample FIT files used by tests (gitignored)
 - `design/` — design mockups and reference CSS/JSX
-- `docs/` — all requirements and design decisions; `requirements.md` is the index
+- `docs/` — all requirements, design decisions, and project reference; `requirements.md` is the index

@@ -13,6 +13,10 @@ For each surviving lap message:
 
 Deleted lap messages (DEF + DATA byte pairs) are removed from the byte stream. File CRC and header CRC are recomputed.
 
+### Per-lap definition re-emission
+
+Stryd and Apple Watch FIT files emit a fresh definition message before each lap data message (valid FIT, common pattern). The writer preserves this structure: a template definition block is written at every original LAP definition position. This maintains the local-type ownership chain — without it, intervening RECORD definition messages would reclaim the local type slot and consumers would misread lap data as records.
+
 ---
 
 ## Filename

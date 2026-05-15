@@ -41,23 +41,24 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 ### Built (v0.1)
 
-- FIT upload — file picker and drag-and-drop
-- FIT parsing
+- FIT upload — file picker and drag-and-drop; supports multi-lap Stryd/Apple Watch files
+- FIT parsing with metadata: data point count, recorded date, detected metrics
 - interactive chart with series toggles (with localStorage persistence) and zoom
+- cursor snap-pull — hover and drag endpoints slide smoothly toward nearest data point
 - lap visualisation as vertical reference lines on the chart
-- drag lap markers horizontally on the chart
+- drag lap markers horizontally on the chart; marker snaps to nearest data point on release
 - double-click chart to add a new marker
 - drag marker onto neighbour to delete
 - lap merge via table button
 - lap summary table (live-updating, color-coded by series)
 - change summary before export
-- FIT export with lap rewrite
+- FIT export with full lap rewrite; preserves all non-lap bytes including per-lap definition re-emission
 - editable export filename
 - light / dark / system theme with persistence
+- beforeunload confirmation when there are unsaved changes
 
 ### Out of Scope (v0.1)
 
-- snapping (v0.2+)
 - AI suggestions
 - accounts / cloud storage
 - Strava/Garmin sync
@@ -75,5 +76,6 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 - running
 - cycling
+- swimming
 
-Cadence unit adapts: `spm` for running, `rpm` for cycling.
+Cadence unit adapts: `spm` for running, `rpm` for cycling and swimming.

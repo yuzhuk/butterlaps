@@ -9,28 +9,46 @@ const XAXIS_HEIGHT = 24;
 const PLOT_HEIGHT = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom - XAXIS_HEIGHT;
 const ZOOM_PADDING = 0.10;
 
-const PRIMARY_SERIES = ['Pace', 'Power', 'Heart Rate', 'Cadence'] as const;
+const PRIMARY_SERIES = ['Pace', 'Speed', 'Power', 'Heart Rate', 'Cadence'] as const;
 
-const STORAGE_KEY = 'butterlaps-active-series';
+const STORAGE_BASE = 'butterlaps-active-series';
+const SPORT_FALLBACK_ORDER = ['running', 'cycling', 'swimming'];
 
-function readStoredSeries(): Set<string> | null {
+// Pace and Speed are the same toggle concept; stored as 'Pace', resolved on read.
+function normForStorage(name: string): string {
+  return name === 'Speed' ? 'Pace' : name;
+}
+function normForSport(name: string, activityType: string): string {
+  return name === 'Pace' && activityType === 'cycling' ? 'Speed' : name;
+}
+
+function readStoredSeries(activityType: string): Set<string> | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return new Set(parsed as string[]);
+    const order = [activityType, ...SPORT_FALLBACK_ORDER.filter((s) => s !== activityType)];
+    for (const sport of order) {
+      const raw = localStorage.getItem(`${STORAGE_BASE}-${sport}`);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set((parsed as string[]).map((n) => normForSport(n, activityType)));
+      }
+    }
   } catch { /* ignore */ }
   return null;
 }
 
-function writeStoredSeries(active: Set<string>) {
+function writeStoredSeries(active: Set<string>, activityType: string) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...active]));
+    localStorage.setItem(
+      `${STORAGE_BASE}-${activityType}`,
+      JSON.stringify([...active].map(normForStorage)),
+    );
   } catch { /* ignore */ }
 }
 
 const SERIES_COLORS: Record<string, string> = {
   Pace: '#4f3bcc',
+  Speed: '#4f3bcc',
   'Heart Rate': '#9e2020',
   Power: '#c5701b',
   Cadence: '#2e7a4e',
@@ -38,6 +56,7 @@ const SERIES_COLORS: Record<string, string> = {
 
 const SERIES_UNITS: Record<string, string> = {
   Pace: '/km',
+  Speed: 'km/h',
   Power: 'W',
   'Heart Rate': 'bpm',
 };
@@ -49,6 +68,7 @@ function getUnit(name: string, activityType: string): string {
 
 const SERIES_YAXIS: Record<string, string> = {
   Pace: 'pace',
+  Speed: 'speed',
   'Heart Rate': 'hr',
   Power: 'power',
   Cadence: 'cadence',
@@ -94,11 +114,12 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
     const available = new Set(activity.series.map((s) => s.name));
-    const stored = readStoredSeries();
+    const stored = readStoredSeries(activity.summary.activityType);
     if (stored) return new Set([...stored].filter((name) => available.has(name)));
     const defaults = new Set<string>();
     if (available.has('Elevation')) defaults.add('Elevation');
     if (available.has('Pace')) defaults.add('Pace');
+    if (available.has('Speed')) defaults.add('Speed');
     return defaults;
   });
 
@@ -132,7 +153,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
 
   const minElevation = useMemo(() => {
     if (!elevationSeries || !elevationSeries.values.length) return 0;
-    return elevationSeries.values.reduce((min, v) => Math.min(min, v.value), Infinity);
+    return elevationSeries.values.reduce((min, v) => v.value !== null ? Math.min(min, v.value) : min, Infinity);
   }, [elevationSeries]);
 
   const hoverSeriesData = useMemo((): HoverSeriesInfo[] => {
@@ -166,7 +187,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
-      writeStoredSeries(next);
+      writeStoredSeries(next, activity.summary.activityType);
       return next;
     });
   };
@@ -210,7 +231,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
       </div>
 
       <div ref={containerRef} className="chart-wrapper">
-        <ResponsiveContainer width="100%" height="100%">
+        {containerWidth > 0 && <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={CHART_MARGIN}>
             <defs>
               <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
@@ -244,6 +265,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
 
             <YAxis yAxisId="elev" hide domain={['dataMin - 10', 'dataMax + 30']} />
             <YAxis yAxisId="pace" hide reversed domain={['auto', 'auto']} />
+            <YAxis yAxisId="speed" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="hr" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="power" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="cadence" hide domain={['auto', 'auto']} />
@@ -285,7 +307,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
                 );
               })}
           </ComposedChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer>}
 
         {containerWidth > 0 && (
           <ChartZoomOverlay
@@ -297,6 +319,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             onZoom={onZoom}
             onZoomReset={onZoomReset}
             hoverSeries={hoverSeriesData}
+            recordTimestamps={activity.recordTimestamps}
             markerTimes={markers.map((m) => m.timeOffsetSeconds)}
             draggableMarkerTimes={(() => {
               const startT = markers[0]?.timeOffsetSeconds ?? -1;

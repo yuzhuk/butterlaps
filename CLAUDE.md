@@ -33,12 +33,14 @@ Laps are never stored as `{ start, end }` objects. They are **derived** from an 
 ```
 src/
   types.ts                  — shared domain types (Marker, FitActivity, Series, …)
-  App.tsx                   — top-level layout, file upload/export, lap table
+  format.ts                 — pure formatter functions (duration, pace, file size, date)
+  App.tsx                   — top-level layout, file upload/export, state orchestration
   styles.css                — all styling (no inline styles)
   fit/
     fitParser.ts            — parses ArrayBuffer → FitActivity using fit-file-parser
     fitWriter.ts            — rewrites lap records into raw FIT bytes
   components/
+    LapTable.tsx            — lap table, merge button, exports getLapIntervals
     ChartPanel.tsx          — chart, series toggles, zoom wiring
     ChartZoomOverlay.tsx    — SVG overlay for zoom, markers, hover, drag
   tests/
@@ -56,24 +58,15 @@ Duration and distance prefer session-level FIT fields and fall back to record-le
 
 ## Engineering rules
 
-From `engineering-rules.md` — treat these as non-negotiable:
-
-- TypeScript everywhere, no `any` in new code
-- Functional components and hooks only; no class components
-- One source of truth per state; state logic lives in custom hooks, not large component bodies
-- No inline styles — use `styles.css` or future CSS modules
-- Components stay under ~250 lines
-- No duplicated logic
-
-## FIT integrity (non-negotiable product rule)
-
-From `docs/export.md`:
-
-- The export must preserve unknown messages, developer fields, vendor-specific fields, and timestamps
-- Only lap-related structures should be rewritten
-- Exported FIT must behave identically to the original except for lap structure
-
-When touching export logic, always verify the raw payload is passed through unchanged for everything outside lap records.
+- TypeScript strict mode is on; no `any` in new code. `any` is permitted in `fitParser.ts` where `fit-file-parser` returns untyped data — leave a comment explaining why.
+- Functional components and hooks only; no class components.
+- Marker-first invariant: laps are always derived from `Marker[]`, never stored as `{ start, end }` pairs. Never pass or persist explicit lap objects.
+- FIT integrity: `rawFitPayload` is never modified. The export layer rewrites only lap messages; all other bytes survive the round-trip unchanged.
+- One source of truth per state. Derived values (lap rows, summary) are computed at render time, not stored in state.
+- No inline styles — use `styles.css`.
+- No duplicated logic — extract shared code to `src/format.ts` or a utility before duplicating across components.
+- Components stay under ~250 lines; extract subcomponents or helpers when approaching the limit.
+- FIT parsing and marker-building logic must have Vitest unit tests. It is pure and deterministic — keep it covered.
 
 ## Version auto-increment
 
