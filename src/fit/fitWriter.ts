@@ -609,10 +609,13 @@ function checkLapStructure(activity: FitActivity, laps: LapInfo[]): void {
 
 // Called at upload time — rejects unsupported files before the user starts editing.
 export function validateFitForEditing(activity: FitActivity): void {
+  if (activity.summary.startTime == null) {
+    throw new Error('Activity has no timestamp data and cannot be edited.');
+  }
   const src = new Uint8Array(activity.rawFitPayload);
   const headerSize = src[0];
   const dataEnd = headerSize + ru32le(src, 4);
-  const activityStartFitS = Math.round(activity.summary.startTime!) / 1000 - FIT_EPOCH_S;
+  const activityStartFitS = Math.round(activity.summary.startTime) / 1000 - FIT_EPOCH_S;
   const { laps } = scanMessages(src, headerSize, dataEnd, activityStartFitS);
   checkLapStructure(activity, laps);
 }
