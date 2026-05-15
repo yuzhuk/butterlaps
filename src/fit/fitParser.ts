@@ -89,6 +89,23 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, r
   return [...seen.values()].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
 }
 
+// Inserts a null sentinel after any point whose successor is more than this many
+// seconds away, so Recharts breaks the line instead of drawing a diagonal.
+const GAP_BREAK_SECONDS = 5;
+
+function withGapBreaks(
+  series: Array<{ timeOffsetSeconds: number; value: number | null }>,
+): Array<{ timeOffsetSeconds: number; value: number | null }> {
+  const result: Array<{ timeOffsetSeconds: number; value: number | null }> = [];
+  for (let i = 0; i < series.length; i++) {
+    result.push(series[i]);
+    if (i + 1 < series.length && series[i + 1].timeOffsetSeconds - series[i].timeOffsetSeconds > GAP_BREAK_SECONDS) {
+      result.push({ timeOffsetSeconds: series[i].timeOffsetSeconds + 1, value: null });
+    }
+  }
+  return result;
+}
+
 function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType: string) {
   const buildNumericSeries = (field: string) =>
     parsedRecords
@@ -106,12 +123,13 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType
   const buildSpeedOrPaceSeries = () =>
     parsedRecords
       .map((record) => {
-        if (record.speed == null || !record.timestamp) return null;
+        const speed = record.speed ?? record.enhanced_speed;
+        if (speed == null || !record.timestamp) return null;
         const t = toOffsetSeconds(record.timestamp, baselineMs);
-        if (record.speed <= 0) return { timeOffsetSeconds: t, value: null };
+        if (speed <= 0) return { timeOffsetSeconds: t, value: null };
         const value = activityType === 'cycling'
-          ? record.speed * 3.6       // km/h
-          : 1000 / record.speed;     // s/km
+          ? speed * 3.6       // km/h
+          : 1000 / speed;     // s/km
         return { timeOffsetSeconds: t, value };
       })
       .filter((item): item is { timeOffsetSeconds: number; value: number | null } => item !== null);
@@ -137,22 +155,22 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType
 
   const series = [];
   if (elevation.length > 0) {
-    series.push({ name: 'Elevation', values: elevation });
+    series.push({ name: 'Elevation', values: withGapBreaks(elevation) });
   }
   if (heartRate.length > 0) {
-    series.push({ name: 'Heart Rate', values: heartRate });
+    series.push({ name: 'Heart Rate', values: withGapBreaks(heartRate) });
   }
   if (distance.length > 0) {
     series.push({ name: 'Distance', values: distance });
   }
   if (power.length > 0) {
-    series.push({ name: 'Power', values: power });
+    series.push({ name: 'Power', values: withGapBreaks(power) });
   }
   if (cadence.length > 0) {
-    series.push({ name: 'Cadence', values: cadence });
+    series.push({ name: 'Cadence', values: withGapBreaks(cadence) });
   }
   if (speedOrPace.length > 0) {
-    series.push({ name: speedOrPaceName, values: speedOrPace });
+    series.push({ name: speedOrPaceName, values: withGapBreaks(speedOrPace) });
   }
 
   return series;
@@ -245,12 +263,12 @@ function detectUnshownSeries(records: Array<any>): string[] {
 
 export async function parseFitFile(file: File): Promise<FitActivity> {
   if (!file.name.toLowerCase().endsWith('.fit')) {
-    throw new Error('Only .fit files are supported.');
+    throw new Error('Only .fit files are supported');
   }
 
   const buffer = await file.arrayBuffer();
   if (buffer.byteLength === 0) {
-    throw new Error('The uploaded FIT file is empty or corrupted.');
+    throw new Error('The uploaded .fit file is empty or corrupted');
   }
 
   const parser = new FitParser({ mode: 'both' });
@@ -262,15 +280,19 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
   const records = topLevelRecords.length > 0 ? topLevelRecords : lapRecords;
   const baselineMs = getBaseTime(records, parsedFit.laps);
 
+  const sessions: Array<any> = parsedFit.sessions ?? parsedFit.activity?.sessions ?? [];
+  if (sessions.length > 1) {
+    throw new Error('Multisport activities are not supported. Upload each sport segment as a separate file.');
+  }
+
   const activityType: string =
-    parsedFit.sessions?.[0]?.sport ??
-    parsedFit.activity?.sessions?.[0]?.sport ??
+    sessions[0]?.sport ??
     'generic';
 
-  const SUPPORTED_SPORTS = new Set(['running', 'cycling', 'swimming']);
+  const SUPPORTED_SPORTS = new Set(['running', 'cycling', 'swimming', 'walking', 'hiking']);
   if (!SUPPORTED_SPORTS.has(activityType)) {
-    const label = activityType === 'generic' ? 'unknown' : activityType.replace(/_/g, ' ');
-    throw new Error(`"${label}" activities are not supported. ButterLaps accepts running, cycling, and swimming.`);
+    const label = activityType === 'generic' ? 'Unknown' : activityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    throw new Error(`${label} activities are not supported. ButterLaps accepts running, walking, hiking, cycling, and swimming.`);
   }
 
   const durationSeconds = getDurationSeconds(parsedFit, baselineMs, records);
@@ -287,10 +309,21 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
 
   const recordTimestamps = buildRecordTimestamps(trimmedRecords, baselineMs);
 
+  const allSeries = buildSeries(trimmedRecords, baselineMs, activityType);
+
+  // Elevation is meaningless for swimming (pool/open water GPS drift).
+  // Keep the data in unshownSeries so the UI can acknowledge it exists.
+  let series = allSeries;
+  let swimUnshown: string[] = [];
+  if (activityType === 'swimming' && allSeries.some((s) => s.name === 'Elevation')) {
+    series = allSeries.filter((s) => s.name !== 'Elevation');
+    swimUnshown = ['Elevation'];
+  }
+
   return {
     fileName: file.name,
     rawFitPayload: buffer,
-    unshownSeries: detectUnshownSeries(trimmedRecords),
+    unshownSeries: [...swimUnshown, ...detectUnshownSeries(trimmedRecords)],
     summary: {
       durationSeconds,
       distanceMeters: getDistanceMeters(parsedFit, trimmedRecords),
@@ -302,6 +335,6 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
     },
     markers: buildMarkers(parsedFit, baselineMs, trimmedRecords, recordTimestamps, durationSeconds),
     recordTimestamps,
-    series: buildSeries(trimmedRecords, baselineMs, activityType),
+    series,
   };
 }

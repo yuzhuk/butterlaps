@@ -7,6 +7,13 @@ import { LapTable, getLapIntervals } from './components/LapTable';
 import { formatDuration, formatPace, formatFileSize, formatActivityDate } from './format';
 import type { FitActivity, Marker } from './types';
 
+function withFitCode(msg: string) {
+  const parts = msg.split('.fit');
+  return parts.map((part, i) => (
+    <span key={i}>{part}{i < parts.length - 1 && <code>.fit</code>}</span>
+  ));
+}
+
 function getExportFileName(originalName: string): string {
   const dot = originalName.lastIndexOf('.');
   const base = dot > 0 ? originalName.slice(0, dot) : originalName;
@@ -168,7 +175,7 @@ function App() {
     setIsLoading(true);
     try {
       if (!selectedFile.name.toLowerCase().endsWith('.fit')) {
-        throw new Error('Only .fit files are supported.');
+        throw new Error('Only .fit files are supported');
       }
       const parsedActivity = await parseFitFile(selectedFile);
       validateFitForEditing(parsedActivity);
@@ -182,7 +189,7 @@ function App() {
       setActivity(null);
       setMarkers([]);
       setZoom(null);
-      setError(err instanceof Error ? err.message : 'Unable to read the uploaded file.');
+      setError(err instanceof Error ? err.message : 'Unable to read the uploaded file');
     } finally {
       setIsLoading(false);
     }
@@ -230,7 +237,7 @@ function App() {
   };
 
   const resetMarkers = () => {
-    if (activity) setMarkers(activity.markers);
+    if (file) loadFile(file);
   };
 
   const handleExport = () => {
@@ -239,7 +246,7 @@ function App() {
     try {
       payload = rewriteLaps(activity, markers);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed.');
+      setError(err instanceof Error ? err.message : 'Export failed');
       return;
     }
     const blob = new Blob([payload], { type: 'application/octet-stream' });
@@ -336,7 +343,7 @@ function App() {
             Butter-smooth lap fixes
           </h1>
           <p className="head-lede">
-            Fix accidental splits and missed lap presses without collateral damage to your FIT file
+            Fix accidental splits and missed lap presses without collateral damage to your <code>.fit</code> file
           </p>
         </header>
 
@@ -362,7 +369,7 @@ function App() {
               />
               <button type="button" className="upload-btn" onClick={openFilePicker}>
                 <IconUpload />
-                Load .FIT file
+                Load .fit file
               </button>
               <span className="upload-hint">or drag and drop a .fit file here</span>
               <span className="upload-spec">
@@ -372,7 +379,7 @@ function App() {
               </span>
             </div>
 
-            {error && <div className="alert">{error}</div>}
+            {error && <div className="alert">{withFitCode(error)}</div>}
             {isLoading && <div className="alert">Loading…</div>}
 
             {file && activity && (
@@ -586,7 +593,7 @@ function App() {
                     disabled={!hasChanges}
                   >
                     <IconDownload />
-                    Export edited FIT
+                    Export edited .fit
                   </button>
                   {hasChanges && (
                     <div className="filename-preview">

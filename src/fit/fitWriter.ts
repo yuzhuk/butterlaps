@@ -595,17 +595,17 @@ function patchLapMessage(
 // ---------------------------------------------------------------------------
 
 function checkLapStructure(activity: FitActivity, laps: LapInfo[]): void {
-  if (!activity.summary.startTime) throw new Error('FIT file has no start time.');
-  if (activity.recordTimestamps.length === 0) throw new Error('FIT file contains no data records.');
-  if (laps.length === 0) throw new Error('FIT file contains no lap messages.');
+  if (!activity.summary.startTime) throw new Error('.fit file has no start time');
+  if (activity.recordTimestamps.length === 0) throw new Error('.fit file contains no data records');
+  if (laps.length === 0) throw new Error('.fit file contains no lap messages');
 
   if (laps.some((l) => l.hasDeveloperFields)) {
-    throw new Error('FIT file contains developer fields in lap messages — not supported.');
+    throw new Error('.fit file contains developer fields in lap messages — not supported');
   }
 
   for (let i = 1; i < laps.length; i++) {
     if (laps[i].startTimeFit <= laps[i - 1].startTimeFit) {
-      throw new Error('Lap timestamps are not strictly increasing — file may be malformed.');
+      throw new Error('Lap timestamps are not strictly increasing — file may be malformed');
     }
   }
 }
@@ -613,7 +613,7 @@ function checkLapStructure(activity: FitActivity, laps: LapInfo[]): void {
 // Called at upload time — rejects unsupported files before the user starts editing.
 export function validateFitForEditing(activity: FitActivity): void {
   if (activity.summary.startTime == null) {
-    throw new Error('Activity has no timestamp data and cannot be edited.');
+    throw new Error('Activity has no timestamp data and cannot be edited');
   }
   const src = new Uint8Array(activity.rawFitPayload);
   const headerSize = src[0];
@@ -635,18 +635,18 @@ function validateForExport(
   checkLapStructure(activity, laps);
 
   const intervals = getIntervals(markers);
-  if (intervals.length === 0) throw new Error('No valid lap intervals defined.');
+  if (intervals.length === 0) throw new Error('No valid lap intervals defined');
 
   const recSet = new Set(activity.recordTimestamps);
   for (const m of markers.slice(1, -1)) {
     if (!recSet.has(m.timeOffsetSeconds)) {
-      throw new Error(`Marker at ${m.timeOffsetSeconds}s is not aligned to a record timestamp. Please reset and re-edit.`);
+      throw new Error(`Marker at ${m.timeOffsetSeconds}s is not aligned to a record timestamp. Please reset and re-edit`);
     }
   }
 
   for (let i = 1; i < intervals.length; i++) {
     if (intervals[i].end <= intervals[i - 1].end) {
-      throw new Error('Lap boundaries are not strictly increasing — internal state error.');
+      throw new Error('Lap boundaries are not strictly increasing — internal state error');
     }
   }
 }
