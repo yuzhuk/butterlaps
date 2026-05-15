@@ -210,7 +210,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
       </div>
 
       <div ref={containerRef} className="chart-wrapper">
-        <ResponsiveContainer width="100%" height="100%">
+        {containerWidth > 0 && <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={CHART_MARGIN}>
             <defs>
               <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
@@ -285,7 +285,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
                 );
               })}
           </ComposedChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer>}
 
         {containerWidth > 0 && (
           <ChartZoomOverlay
