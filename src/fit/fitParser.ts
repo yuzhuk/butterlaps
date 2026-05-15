@@ -252,6 +252,12 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
     parsedFit.activity?.sessions?.[0]?.sport ??
     'generic';
 
+  const SUPPORTED_SPORTS = new Set(['running', 'cycling', 'swimming']);
+  if (!SUPPORTED_SPORTS.has(activityType)) {
+    const label = activityType === 'generic' ? 'unknown' : activityType.replace(/_/g, ' ');
+    throw new Error(`"${label}" activities are not supported. ButterLaps accepts running, cycling, and swimming.`);
+  }
+
   const recordTimestamps = buildRecordTimestamps(records, baselineMs);
 
   return {
