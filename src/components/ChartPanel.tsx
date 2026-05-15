@@ -141,7 +141,33 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
     return [Math.max(0, zoom.start - pad), Math.min(totalDuration, zoom.end + pad)];
   }, [zoom, totalDuration]);
 
-  const ticks = useMemo(() => computeTicks(displayDomain[0], displayDomain[1]), [displayDomain]);
+  const ticks = useMemo(() => {
+    const base = computeTicks(displayDomain[0], displayDomain[1]);
+    if (!zoom) return base;
+    const set = new Set(base);
+    const result = [...base];
+    for (const t of [zoom.start, zoom.end]) {
+      if (!set.has(t)) {
+        const i = result.findIndex((v) => v > t);
+        result.splice(i === -1 ? result.length : i, 0, t);
+      }
+    }
+    return result;
+  }, [displayDomain, zoom]);
+
+  const xTick = useMemo(() => {
+    const leftAnchors = new Set([displayDomain[0], zoom?.start]);
+    const rightAnchors = new Set([displayDomain[1], zoom?.end]);
+    return function XTick({ x, y, payload }: { x: string | number; y: string | number; payload: { value: number } }) {
+      const v = payload.value;
+      const anchor = leftAnchors.has(v) ? 'start' : rightAnchors.has(v) ? 'end' : 'middle';
+      return (
+        <text x={x} y={y} dy={10} textAnchor={anchor} fontSize={10} fill="#969389" fontFamily="JetBrains Mono, monospace">
+          {formatXTick(v)}
+        </text>
+      );
+    };
+  }, [displayDomain, zoom]);
 
   const availablePrimary = useMemo(
     () => PRIMARY_SERIES.filter((name) => activity.series.some((s) => s.name === name)),
@@ -249,9 +275,8 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
               domain={displayDomain}
               allowDataOverflow
               height={XAXIS_HEIGHT}
-              tickFormatter={formatXTick}
               ticks={ticks}
-              tick={{ fontSize: 10, fill: '#969389', fontFamily: 'JetBrains Mono, monospace' }}
+              tick={xTick}
               axisLine={{ stroke: '#e0ddd3' }}
               tickLine={{ stroke: '#e0ddd3' }}
             />

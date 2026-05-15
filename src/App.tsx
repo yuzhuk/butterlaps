@@ -310,9 +310,7 @@ function App() {
     };
   })() : null;
 
-  const sport = activity?.summary.activityType
-    ? activity.summary.activityType.charAt(0).toUpperCase() + activity.summary.activityType.slice(1)
-    : null;
+  const sport = activity?.summary.activityType ?? null;
 
   return (
     <div data-theme={resolved}>
@@ -387,6 +385,7 @@ function App() {
                 <div className="loaded__file">
                   <span className="loaded__icon">▤</span>
                   <span className="loaded__name">{file.name}</span>
+                  {sport && <><span className="loaded__sep">·</span><span className="loaded__k">{sport}</span></>}
                   <span className="loaded__spacer" />
                   <button type="button" className="btn-danger" onClick={handleClear}>Clear</button>
                 </div>
@@ -398,12 +397,6 @@ function App() {
                     <>
                       <span className="loaded__sep">·</span>
                       <span><span className="loaded__k">Recorded: </span>{formatActivityDate(activity.summary.startTime)}</span>
-                    </>
-                  )}
-                  {sport && (
-                    <>
-                      <span className="loaded__sep">·</span>
-                      <span>{sport}</span>
                     </>
                   )}
                   <span className="loaded__sep">·</span>

@@ -117,6 +117,8 @@ function fmtValue(value: number, name: string, unit: string): string {
 }
 
 const LABEL_HALF_WIDTH_PX = 60;
+const HOVER_CHAR_W = 6;   // px per char, JetBrains Mono 10px
+const HOVER_BOX_PAD = 8;  // 4px each side
 
 function tooltipAnchor(px: number, plotWidth: number): 'start' | 'middle' | 'end' {
   if (px < LABEL_HALF_WIDTH_PX) return 'start';
@@ -402,8 +404,6 @@ export function ChartZoomOverlay({
   const selW = drag ? Math.abs(drag.currentDisplayPx - drag.startDisplayPx) : 0;
 
   const hoverTime = hoverPos ? domain[0] + (hoverPos.x / plotWidth) * (domain[1] - domain[0]) : null;
-  const labelOnLeft = hoverPos ? hoverPos.x > plotWidth * 0.65 : false;
-  const labelX = hoverPos ? (labelOnLeft ? hoverPos.x - 6 : hoverPos.x + 6) : 0;
 
   const allHoverLabels =
     hoverPos && hoverTime != null
@@ -539,42 +539,58 @@ export function ChartZoomOverlay({
         )}
 
         {/* Hover cursor (suppressed during marker drag) */}
-        {hoverPos && !drag && !markerDrag && (
-          <>
-            <line
-              x1={hoverPos.x} y1={0} x2={hoverPos.x} y2={plotHeight}
-              stroke="#4a9068" strokeWidth={0.5} strokeOpacity={0.9}
-            />
-            <TooltipText x={hoverPos.x} y={-4} anchor={tooltipAnchor(hoverPos.x, plotWidth)}>
-              {fmtTime(hoverTime!)}{distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : ''}
-            </TooltipText>
-            {primaryLabels.map((label, i) => (
+        {hoverPos && !drag && !markerDrag && (() => {
+          const headerStr = fmtTime(hoverTime!) + (distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : '');
+          const longestChars = Math.max(
+            headerStr.length,
+            ...primaryLabels.map((l) => fmtValue(l.value, l.name, l.unit).length),
+          );
+          const boxW = Math.max(32, longestChars * HOVER_CHAR_W + HOVER_BOX_PAD);
+          const boxLeft = Math.min(hoverPos.x + 1, plotWidth - boxW);
+          const boxH = (1 + primaryLabels.length) * 13 + 4;
+          return (
+            <>
+              <line
+                x1={hoverPos.x} y1={0} x2={hoverPos.x} y2={plotHeight}
+                stroke="#4a9068" strokeWidth={0.5} strokeOpacity={0.9}
+              />
+              <rect x={boxLeft} y={0} width={boxW} height={boxH}
+                fill="var(--plot-bg)" fillOpacity={0.65} rx={2} />
               <text
-                key={label.name}
-                x={labelX}
-                y={10 + i * 13}
-                textAnchor={labelOnLeft ? 'end' : 'start'}
-                fontSize={10}
-                fontFamily="inherit"
-                style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
+                x={boxLeft + 4} y={10}
+                textAnchor="start" fontSize={10} fontFamily="inherit"
+                style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
-                {fmtValue(label.value, label.name, label.unit)}
+                {fmtTime(hoverTime!)}{distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : ''}
               </text>
-            ))}
-            {elevationLabel && (
-              <text
-                x={labelX}
-                y={plotHeight - 8}
-                textAnchor={labelOnLeft ? 'end' : 'start'}
-                fontSize={10}
-                fontFamily="inherit"
-                style={{ fill: elevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-              >
-                {fmtValue(elevationLabel.value, elevationLabel.name, elevationLabel.unit)}
-              </text>
-            )}
-          </>
-        )}
+              {primaryLabels.map((label, i) => (
+                <text
+                  key={label.name}
+                  x={boxLeft + 4}
+                  y={10 + (i + 1) * 13}
+                  textAnchor="start"
+                  fontSize={10}
+                  fontFamily="inherit"
+                  style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
+                >
+                  {fmtValue(label.value, label.name, label.unit)}
+                </text>
+              ))}
+              {elevationLabel && (
+                <text
+                  x={boxLeft + 4}
+                  y={plotHeight - 8}
+                  textAnchor="start"
+                  fontSize={10}
+                  fontFamily="inherit"
+                  style={{ fill: elevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
+                >
+                  {fmtValue(elevationLabel.value, elevationLabel.name, elevationLabel.unit)}
+                </text>
+              )}
+            </>
+          );
+        })()}
 
         {/* Flash lines (double-click blocked) */}
         {flashState && domSpan > 0 && (() => {
