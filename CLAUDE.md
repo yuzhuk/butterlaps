@@ -56,6 +56,10 @@ Pace is computed as `1000 / speed` (seconds per km from m/s).
 
 Duration and distance prefer session-level FIT fields and fall back to record-level values.
 
+## Workflow rules
+
+- **Commit before changing**: before making any code changes in response to a prompt, run `git status` and if there are uncommitted changes, commit them first. This ensures every prompt starts from a clean rollback point.
+
 ## Engineering rules
 
 - TypeScript strict mode is on; no `any` in new code. `any` is permitted in `fitParser.ts` where `fit-file-parser` returns untyped data — leave a comment explaining why.

@@ -197,6 +197,28 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
   const hrSeries = activity.series.find((s) => s.name === 'Heart Rate');
   const hrDomain = useMemo(() => domainClipZeros(hrSeries), [hrSeries]);
 
+  const paceSeries = activity.series.find((s) => s.name === 'Pace');
+  const paceDomain = useMemo((): [(d: number) => number, (d: number) => number] => {
+    if (!paceSeries?.values.length) return [(d) => d, (d) => d];
+    // cap outliers (GPS drift / stops) at a sport-specific max pace
+    const CAP: Record<string, number> = {
+      running:  900,   // 15:00/km
+      walking:  1500,  // 25:00/km
+      hiking:   1800,  // 30:00/km
+      swimming: 2400,  // ~40:00/km
+    };
+    const cap = CAP[activity.summary.activityType] ?? 1800;
+    let minPace = Infinity, maxPace = -Infinity;
+    for (const v of paceSeries.values) {
+      if (v.value === null || v.value > cap) continue;
+      if (v.value < minPace) minPace = v.value;
+      if (v.value > maxPace) maxPace = v.value;
+    }
+    if (!isFinite(minPace)) return [(d) => d, (d) => d];
+    const pad = Math.max((maxPace - minPace) * 0.15, 10); // ≥10s so flat efforts still breathe
+    return [() => Math.max(0, minPace - pad), () => maxPace + pad];
+  }, [paceSeries, activity.summary.activityType]);
+
   const hoverSeriesData = useMemo((): HoverSeriesInfo[] => {
     const result: HoverSeriesInfo[] = [];
 
@@ -304,7 +326,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             )}
 
             <YAxis yAxisId="elev" hide domain={['dataMin - 10', 'dataMax + 30']} />
-            <YAxis yAxisId="pace" hide reversed domain={['auto', 'auto']} />
+            <YAxis yAxisId="pace" hide reversed domain={paceDomain} allowDataOverflow />
             <YAxis yAxisId="speed" hide domain={['auto', 'auto']} />
             <YAxis yAxisId="hr" hide domain={hrDomain} allowDataOverflow />
             <YAxis yAxisId="power" hide domain={[0, (d: number) => d * 1.15]} />
