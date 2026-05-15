@@ -23,9 +23,8 @@ npm run test      # run Vitest tests
 
 - [`docs/overview.md`](docs/overview.md) — product summary, principles, scope
 - [`docs/requirements.md`](docs/requirements.md) — index of all requirement docs
-- [`project-structure.md`](project-structure.md) — folder layout and responsibilities
-- [`data-model.md`](data-model.md) — core marker/lap/activity data model
-- [`tech-stack.md`](tech-stack.md) — stack choices and FIT parsing/export strategy
+- [`docs/project-structure.md`](docs/project-structure.md) — folder layout and responsibilities
+- [`docs/tech-stack.md`](docs/tech-stack.md) — stack choices and FIT parsing/export strategy
 - [`engineering-rules.md`](engineering-rules.md) — implementation and architecture rules
 
 ## License
