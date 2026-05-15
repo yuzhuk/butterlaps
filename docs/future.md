@@ -1,10 +1,5 @@
 # FIT Lap Editor — Next Iteration Notes
 
-## Future Scope
-
-Potential future activities:
-- swimming
-
 ## Future UI / Visualization
 
 - alternating subtle background shading for lap regions

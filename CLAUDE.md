@@ -33,12 +33,14 @@ Laps are never stored as `{ start, end }` objects. They are **derived** from an 
 ```
 src/
   types.ts                  — shared domain types (Marker, FitActivity, Series, …)
-  App.tsx                   — top-level layout, file upload/export, lap table
+  format.ts                 — pure formatter functions (duration, pace, file size, date)
+  App.tsx                   — top-level layout, file upload/export, state orchestration
   styles.css                — all styling (no inline styles)
   fit/
     fitParser.ts            — parses ArrayBuffer → FitActivity using fit-file-parser
     fitWriter.ts            — rewrites lap records into raw FIT bytes
   components/
+    LapTable.tsx            — lap table, merge button, exports getLapIntervals
     ChartPanel.tsx          — chart, series toggles, zoom wiring
     ChartZoomOverlay.tsx    — SVG overlay for zoom, markers, hover, drag
   tests/

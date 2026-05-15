@@ -37,8 +37,11 @@ The raw `ArrayBuffer` is preserved verbatim on `FitActivity.rawFitPayload` for u
 
 ```
 src/
-  types.ts          — shared domain types (Marker, FitActivity, Series, …)
+  types.ts                  — shared domain types (Marker, FitActivity, Series, …)
+  format.ts                 — pure formatter functions (duration, pace, file size, date)
   fit/
-    fitParser.ts    — parses ArrayBuffer → FitActivity
-    fitWriter.ts    — rewrites lap records into raw FIT bytes
+    fitParser.ts            — parses ArrayBuffer → FitActivity
+    fitWriter.ts            — rewrites lap records into raw FIT bytes
+  components/
+    LapTable.tsx            — lap table UI; exports getLapIntervals for use in App
 ```

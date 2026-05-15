@@ -76,5 +76,6 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 - running
 - cycling
+- swimming
 
-Cadence unit adapts: `spm` for running, `rpm` for cycling.
+Cadence unit adapts: `spm` for running, `rpm` for cycling and swimming.

@@ -2,10 +2,11 @@
 
 ## Merge via Table
 
-A small circular merge button straddles the border between consecutive lap rows, aligned to the left of the row number column.
+A small square button straddles the row boundary between consecutive laps, positioned just outside the right edge of the lap-number cell.
 
-- always visible between interior rows (not shown on first or last row)
-- hover: red background and border — communicates destructive action
+- visible between all consecutive lap rows except after the last lap
+- idle state: 16×16 px, transparent background with brick-red border; displays a × icon (two SVG chevron halves overlaid to form a cross)
+- hover state: expands rightward to ~60 px, brick-red background; the × splits apart into `‹ MERGE ›` — the chevrons are the same SVG halves pulled to opposite ends, with "MERGE" label revealed between them
 - clicking removes the marker between the two laps and recalculates the combined interval
 
 ---
