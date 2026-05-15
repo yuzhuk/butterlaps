@@ -182,6 +182,21 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
     return elevationSeries.values.reduce((min, v) => v.value !== null ? Math.min(min, v.value) : min, Infinity);
   }, [elevationSeries]);
 
+  function domainClipZeros(series: typeof hrSeries): [(d: number) => number, (d: number) => number] {
+    if (!series || !series.values.length) return [(d) => d, (d) => d];
+    const hasZero = series.values.some((v) => v.value === 0);
+    if (!hasZero) return [(d) => d, (d) => d * 1.15];
+    const minNonZero = series.values.reduce(
+      (min, v) => (v.value !== null && v.value > 0 ? Math.min(min, v.value) : min),
+      Infinity,
+    );
+    const floor = isFinite(minNonZero) ? minNonZero / 2 : 0;
+    return [() => floor, (d) => d * 1.15];
+  }
+
+  const hrSeries = activity.series.find((s) => s.name === 'Heart Rate');
+  const hrDomain = useMemo(() => domainClipZeros(hrSeries), [hrSeries]);
+
   const hoverSeriesData = useMemo((): HoverSeriesInfo[] => {
     const result: HoverSeriesInfo[] = [];
 
@@ -291,9 +306,9 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             <YAxis yAxisId="elev" hide domain={['dataMin - 10', 'dataMax + 30']} />
             <YAxis yAxisId="pace" hide reversed domain={['auto', 'auto']} />
             <YAxis yAxisId="speed" hide domain={['auto', 'auto']} />
-            <YAxis yAxisId="hr" hide domain={['auto', 'auto']} />
-            <YAxis yAxisId="power" hide domain={['auto', 'auto']} />
-            <YAxis yAxisId="cadence" hide domain={['auto', 'auto']} />
+            <YAxis yAxisId="hr" hide domain={hrDomain} allowDataOverflow />
+            <YAxis yAxisId="power" hide domain={[0, (d: number) => d * 1.15]} />
+            <YAxis yAxisId="cadence" hide domain={[0, (d: number) => d * 1.15]} />
 
             {activeSeries.has('Elevation') && elevationSeries && (
               <Area
