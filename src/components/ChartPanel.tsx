@@ -11,21 +11,38 @@ const ZOOM_PADDING = 0.10;
 
 const PRIMARY_SERIES = ['Pace', 'Speed', 'Power', 'Heart Rate', 'Cadence'] as const;
 
-const STORAGE_KEY = 'butterlaps-active-series';
+const STORAGE_BASE = 'butterlaps-active-series';
+const SPORT_FALLBACK_ORDER = ['running', 'cycling', 'swimming'];
 
-function readStoredSeries(): Set<string> | null {
+// Pace and Speed are the same toggle concept; stored as 'Pace', resolved on read.
+function normForStorage(name: string): string {
+  return name === 'Speed' ? 'Pace' : name;
+}
+function normForSport(name: string, activityType: string): string {
+  return name === 'Pace' && activityType === 'cycling' ? 'Speed' : name;
+}
+
+function readStoredSeries(activityType: string): Set<string> | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return new Set(parsed as string[]);
+    const order = [activityType, ...SPORT_FALLBACK_ORDER.filter((s) => s !== activityType)];
+    for (const sport of order) {
+      const raw = localStorage.getItem(`${STORAGE_BASE}-${sport}`);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set((parsed as string[]).map((n) => normForSport(n, activityType)));
+      }
+    }
   } catch { /* ignore */ }
   return null;
 }
 
-function writeStoredSeries(active: Set<string>) {
+function writeStoredSeries(active: Set<string>, activityType: string) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...active]));
+    localStorage.setItem(
+      `${STORAGE_BASE}-${activityType}`,
+      JSON.stringify([...active].map(normForStorage)),
+    );
   } catch { /* ignore */ }
 }
 
@@ -97,7 +114,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
     const available = new Set(activity.series.map((s) => s.name));
-    const stored = readStoredSeries();
+    const stored = readStoredSeries(activity.summary.activityType);
     if (stored) return new Set([...stored].filter((name) => available.has(name)));
     const defaults = new Set<string>();
     if (available.has('Elevation')) defaults.add('Elevation');
@@ -170,7 +187,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
-      writeStoredSeries(next);
+      writeStoredSeries(next, activity.summary.activityType);
       return next;
     });
   };
