@@ -182,16 +182,6 @@ const SERIES_SHORT: Record<string, string> = {
 
 type ThemeSetting = 'light' | 'dark' | 'system';
 
-function resolveTheme(setting: ThemeSetting): 'light' | 'dark' {
-  if (setting === 'system') {
-    try {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } catch {
-      return 'light';
-    }
-  }
-  return setting;
-}
 
 const THEME_CYCLE: Record<ThemeSetting, ThemeSetting> = {
   light: 'dark',
@@ -284,9 +274,17 @@ function App() {
     } catch { /* ignore */ }
     return 'light';
   });
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const resolved = resolveTheme(theme);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const resolved: 'light' | 'dark' = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
@@ -294,14 +292,6 @@ function App() {
 
   useEffect(() => {
     try { localStorage.setItem('butterlaps-theme', theme); } catch { /* ignore */ }
-  }, [theme]);
-
-  useEffect(() => {
-    if (theme !== 'system') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => { document.documentElement.dataset.theme = resolveTheme('system'); };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
   }, [theme]);
 
   useEffect(() => {

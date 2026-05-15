@@ -200,7 +200,7 @@ const UNSHOWN_FIELD_LABELS: Record<string, string> = {
   stance_time:                   'GCT',
   stance_time_percent:           'Stance %',
   vertical_ratio:                'Vert Ratio',
-  step_length:                   'Step Length',
+  step_length:                   'Stride Length',
   left_right_balance:            'L/R Balance',
   saturated_hemoglobin_percent:  'SpO2',
   total_hemoglobin_conc:         'Hemoglobin',
