@@ -1,3 +1,7 @@
+---
+description: Review the session and update all docs/ and root .md files to reflect the current state of the project.
+---
+
 Review the current conversation for any decisions, changes, or additions made this session. Then read every file in `docs/` plus these root-level `.md` files (README.md, CLAUDE.md, AGENTS.md) and update them to reflect the current state of the project.
 
 Steps:

@@ -1,3 +1,7 @@
+---
+description: Review the session and update all design and UX docs to reflect the current state of the product's UI and interactions.
+---
+
 Review the current conversation for any UI, UX, or visual decisions made this session. Then read all design-related files and update them to reflect the current state of the product's look, feel, and interaction model.
 
 Design files to check (read all that exist):
