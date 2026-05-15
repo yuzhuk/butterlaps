@@ -121,10 +121,13 @@ describe('running – compressed speed/distance encoding', () => {
 
 describe('running – Strava Android export', () => {
   const file = 'strava-android.fit';
-  skipIfMissing(file)('parses enhanced fields file', async () => {
+  skipIfMissing(file)('stray sentinel record (timestamp year 2085) is stripped', async () => {
     const a = await parse(file);
     expect(a.summary.activityType).toBe('running');
-    expect(a.summary.durationSeconds).toBeGreaterThan(0);
+    expect(a.summary.durationSeconds).toBe(3558);
+    // All record timestamps must be within the declared duration
+    const maxOffset = Math.max(...a.recordTimestamps);
+    expect(maxOffset).toBeLessThanOrEqual(3558 + 30);
   });
   skipIfMissing(file)('round-trips', async () => { await roundTrip(file); });
 });

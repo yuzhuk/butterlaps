@@ -259,23 +259,35 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
     throw new Error(`"${label}" activities are not supported. ButterLaps accepts running, cycling, and swimming.`);
   }
 
-  const recordTimestamps = buildRecordTimestamps(records, baselineMs);
+  const durationSeconds = getDurationSeconds(parsedFit, baselineMs, records);
+
+  // Some apps (e.g. Strava Android) append a stray sentinel record with a timestamp
+  // decades in the future. Drop any record whose offset exceeds the declared duration
+  // by more than 30 seconds so it can't corrupt the chart domain or marker positions.
+  const trimmedRecords = durationSeconds > 0
+    ? records.filter((r) => {
+        if (!r.timestamp) return true;
+        return toOffsetSeconds(r.timestamp, baselineMs) <= durationSeconds + 30;
+      })
+    : records;
+
+  const recordTimestamps = buildRecordTimestamps(trimmedRecords, baselineMs);
 
   return {
     fileName: file.name,
     rawFitPayload: buffer,
-    unshownSeries: detectUnshownSeries(records),
+    unshownSeries: detectUnshownSeries(trimmedRecords),
     summary: {
-      durationSeconds: getDurationSeconds(parsedFit, baselineMs, records),
-      distanceMeters: getDistanceMeters(parsedFit, records),
-      hasHeartRate: records.some((record) => record.heart_rate != null),
-      hasPower: records.some((record) => record.power != null),
-      hasCadence: records.some((record) => record.cadence != null),
+      durationSeconds,
+      distanceMeters: getDistanceMeters(parsedFit, trimmedRecords),
+      hasHeartRate: trimmedRecords.some((record) => record.heart_rate != null),
+      hasPower: trimmedRecords.some((record) => record.power != null),
+      hasCadence: trimmedRecords.some((record) => record.cadence != null),
       activityType,
       startTime: baselineMs > 0 ? baselineMs : null,
     },
-    markers: buildMarkers(parsedFit, baselineMs, records, recordTimestamps),
+    markers: buildMarkers(parsedFit, baselineMs, trimmedRecords, recordTimestamps),
     recordTimestamps,
-    series: buildSeries(records, baselineMs, activityType),
+    series: buildSeries(trimmedRecords, baselineMs, activityType),
   };
 }
