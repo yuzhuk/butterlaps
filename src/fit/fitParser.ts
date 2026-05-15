@@ -57,7 +57,7 @@ function buildRecordTimestamps(records: Array<any>, baselineMs: number): number[
   return result;
 }
 
-function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, recordTimestamps: number[]): Marker[] {
+function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, recordTimestamps: number[], durationSeconds: number): Marker[] {
   const markers: Marker[] = [{ timeOffsetSeconds: 0, label: 'Start' }];
 
   if (Array.isArray(parsedFit.laps)) {
@@ -73,11 +73,12 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, r
     });
   }
 
-  if (records.length > 0) {
-    const finishOffset = toOffsetSeconds(records[records.length - 1].timestamp, baselineMs);
-    if (!markers.some((marker) => marker.timeOffsetSeconds === finishOffset)) {
-      markers.push({ timeOffsetSeconds: finishOffset, label: 'Finish' });
-    }
+  const finishOffset = durationSeconds > 0
+    ? durationSeconds
+    : records.length > 0 ? toOffsetSeconds(records[records.length - 1].timestamp, baselineMs) : 0;
+
+  if (finishOffset > 0 && !markers.some((marker) => marker.timeOffsetSeconds === finishOffset)) {
+    markers.push({ timeOffsetSeconds: finishOffset, label: 'Finish' });
   }
 
   // Dedup by timeOffsetSeconds, keeping first occurrence, then sort
@@ -105,12 +106,23 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType
   const buildSpeedOrPaceSeries = () =>
     parsedRecords
       .map((record) => {
-        if (record.speed == null || record.speed <= 0 || !record.timestamp) {
-          return null;
-        }
+        if (record.speed == null || !record.timestamp) return null;
+        const t = toOffsetSeconds(record.timestamp, baselineMs);
+        if (record.speed <= 0) return { timeOffsetSeconds: t, value: null };
         const value = activityType === 'cycling'
           ? record.speed * 3.6       // km/h
           : 1000 / record.speed;     // s/km
+        return { timeOffsetSeconds: t, value };
+      })
+      .filter((item): item is { timeOffsetSeconds: number; value: number | null } => item !== null);
+
+  // Garmin native Running Power uses a developer field named 'Power' (capital P);
+  // Stryd and others use the standard 'power' field. Try both.
+  const buildPowerSeries = () =>
+    parsedRecords
+      .map((record) => {
+        const value = record.power ?? record['Power'];
+        if (value == null || !record.timestamp) return null;
         return { timeOffsetSeconds: toOffsetSeconds(record.timestamp, baselineMs), value };
       })
       .filter((item): item is { timeOffsetSeconds: number; value: number } => item !== null);
@@ -118,7 +130,7 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType
   const elevation = buildNumericSeries('altitude');
   const heartRate = buildNumericSeries('heart_rate');
   const distance = buildNumericSeries('distance');
-  const power = buildNumericSeries('power');
+  const power = buildPowerSeries();
   const cadence = buildNumericSeries('cadence').map((point) => ({ ...point, value: point.value * 2 }));
   const speedOrPace = buildSpeedOrPaceSeries();
   const speedOrPaceName = activityType === 'cycling' ? 'Speed' : 'Pace';
@@ -183,33 +195,35 @@ const PARSED_RECORD_FIELDS = new Set([
   'heart_rate',
   'distance',
   'speed', 'enhanced_speed',
-  'power',
+  'power', 'Power',  // 'Power' is Garmin native Running Power developer field
   'cadence',
 ]);
 
 // Non-chart fields to skip entirely
 const EXCLUDED_RECORD_FIELDS = new Set([
   'timestamp', 'position_lat', 'position_long', 'compressed_speed_distance',
+  'elapsed_time', 'timer_time',  // internal per-record timing, not user metrics
 ]);
 
 const UNSHOWN_FIELD_LABELS: Record<string, string> = {
-  temperature:                   'Temp',
-  vertical_speed:                'Vert Speed',
-  gps_accuracy:                  'GPS Acc',
-  fractional_cadence:            'Frac Cad',
-  vertical_oscillation:          'Vert Osc',
-  stance_time:                   'GCT',
-  stance_time_percent:           'Stance %',
-  vertical_ratio:                'Vert Ratio',
+  temperature:                   'Temperature',
+  vertical_speed:                'Vertical Speed',
+  gps_accuracy:                  'GPS Accuracy',
+  fractional_cadence:            'Fractional Cadence',
+  vertical_oscillation:          'Vertical Oscillation',
+  stance_time:                   'Ground Contact Time',
+  stance_time_balance:           'GCT Balance',
+  stance_time_percent:           'GCT %',
+  vertical_ratio:                'Vertical Ratio',
   step_length:                   'Stride Length',
   left_right_balance:            'L/R Balance',
-  saturated_hemoglobin_percent:  'SpO2',
+  saturated_hemoglobin_percent:  'SpO₂',
   total_hemoglobin_conc:         'Hemoglobin',
-  respiration_rate:              'Respiration',
+  respiration_rate:              'Breathing Rate',
   training_load_peak:            'Training Load',
-  motor_power:                   'Motor Pwr',
-  ebike_battery_level:           'e-Battery',
-  accumulated_power:             'Accum Pwr',
+  motor_power:                   'Motor Power',
+  ebike_battery_level:           'Battery',
+  accumulated_power:             'Accumulated Power',
 };
 
 function detectUnshownSeries(records: Array<any>): string[] {
@@ -281,12 +295,12 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
       durationSeconds,
       distanceMeters: getDistanceMeters(parsedFit, trimmedRecords),
       hasHeartRate: trimmedRecords.some((record) => record.heart_rate != null),
-      hasPower: trimmedRecords.some((record) => record.power != null),
+      hasPower: trimmedRecords.some((record) => record.power != null || (record as unknown as Record<string, unknown>)['Power'] != null),
       hasCadence: trimmedRecords.some((record) => record.cadence != null),
       activityType,
       startTime: baselineMs > 0 ? baselineMs : null,
     },
-    markers: buildMarkers(parsedFit, baselineMs, trimmedRecords, recordTimestamps),
+    markers: buildMarkers(parsedFit, baselineMs, trimmedRecords, recordTimestamps, durationSeconds),
     recordTimestamps,
     series: buildSeries(trimmedRecords, baselineMs, activityType),
   };

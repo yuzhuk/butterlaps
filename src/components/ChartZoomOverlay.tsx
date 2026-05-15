@@ -12,7 +12,7 @@ export interface HoverSeriesInfo {
   name: string;
   color: string;
   unit: string;
-  values: Array<{ timeOffsetSeconds: number; value: number }>;
+  values: Array<{ timeOffsetSeconds: number; value: number | null }>;
 }
 
 interface Props {
@@ -73,13 +73,16 @@ interface MarkerDragState {
 }
 
 function interpolateAt(
-  values: Array<{ timeOffsetSeconds: number; value: number }>,
+  values: Array<{ timeOffsetSeconds: number; value: number | null }>,
   time: number,
 ): number | null {
   if (!values.length) return null;
   if (time <= values[0].timeOffsetSeconds) return values[0].value;
   const last = values[values.length - 1];
-  if (time >= last.timeOffsetSeconds) return last.value;
+  if (time >= last.timeOffsetSeconds) {
+    // Clamp up to 10 s past last data point; beyond that treat as no data.
+    return time - last.timeOffsetSeconds <= 10 ? last.value : null;
+  }
   let lo = 0, hi = values.length - 1;
   while (hi - lo > 1) {
     const mid = (lo + hi) >> 1;
@@ -87,6 +90,7 @@ function interpolateAt(
     else hi = mid;
   }
   const a = values[lo], b = values[hi];
+  if (a.value === null || b.value === null) return null; // inside a gap
   const t = (time - a.timeOffsetSeconds) / (b.timeOffsetSeconds - a.timeOffsetSeconds);
   return a.value + t * (b.value - a.value);
 }
@@ -539,7 +543,7 @@ export function ChartZoomOverlay({
           <>
             <line
               x1={hoverPos.x} y1={0} x2={hoverPos.x} y2={plotHeight}
-              stroke="#a8a59a" strokeWidth={0.75} strokeOpacity={0.9}
+              stroke="#4a9068" strokeWidth={0.5} strokeOpacity={0.9}
             />
             <TooltipText x={hoverPos.x} y={-4} anchor={tooltipAnchor(hoverPos.x, plotWidth)}>
               {fmtTime(hoverTime!)}{distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : ''}

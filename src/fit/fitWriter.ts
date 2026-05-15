@@ -385,7 +385,10 @@ function computeLapStats(
   activityStartFitS: number,
   series: FitActivity['series'],
 ): LapStats {
-  const get = (name: string) => series.find((ser) => ser.name === name)?.values ?? [];
+  const get = (name: string): SeriesPoint[] => {
+    const vals = series.find((ser) => ser.name === name)?.values ?? [];
+    return vals.filter((v): v is SeriesPoint => v.value !== null);
+  };
   const distPts   = get('Distance');
   const hrPts     = get('Heart Rate');
   const cadPts    = get('Cadence');    // already ×2 in parser; divide by 2 for FIT raw

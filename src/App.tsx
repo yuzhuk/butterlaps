@@ -101,12 +101,13 @@ function buildLapRows(activity: FitActivity, markers: Marker[]) {
                p.timeOffsetSeconds <= interval.startOffsetSeconds + interval.durationSeconds
       );
       if (series.name === 'Distance') {
-        const value = points.length > 1 ? points[points.length - 1].value - points[0].value : null;
+        const last = points.length > 1 ? points[points.length - 1].value : null;
+        const first = points.length > 1 ? points[0].value : null;
+        const value = last !== null && first !== null ? last - first : null;
         return { name: series.name, value };
       }
-      const average = points.length
-        ? points.reduce((sum, p) => sum + p.value, 0) / points.length
-        : null;
+      const nonNull = points.filter((p): p is { timeOffsetSeconds: number; value: number } => p.value !== null);
+      const average = nonNull.length ? nonNull.reduce((sum, p) => sum + p.value, 0) / nonNull.length : null;
       return { name: series.name, value: average };
     }),
   }));
@@ -117,9 +118,11 @@ function getSummaryRow(activity: FitActivity, markers: Marker[]) {
   const lapRows = buildLapRows(activity, markers);
   const totalDuration = lapRows.reduce((sum, row) => sum + row.durationSeconds, 0);
   const distanceSeries = activity.series.find((s) => s.name === 'Distance');
-  const totalDistance = distanceSeries && distanceSeries.values.length > 1
-    ? distanceSeries.values[distanceSeries.values.length - 1].value - distanceSeries.values[0].value
-    : null;
+  const lastDist = distanceSeries && distanceSeries.values.length > 1
+    ? distanceSeries.values[distanceSeries.values.length - 1].value : null;
+  const firstDist = distanceSeries && distanceSeries.values.length > 1
+    ? distanceSeries.values[0].value : null;
+  const totalDistance = lastDist !== null && firstDist !== null ? lastDist - firstDist : null;
   return {
     durationSeconds: totalDuration,
     values: seriesList.map((series) => {
@@ -132,9 +135,9 @@ function getSummaryRow(activity: FitActivity, markers: Marker[]) {
         const value = totalDistance && totalDuration > 0 ? (totalDistance / totalDuration) * 3.6 : null;
         return { name: series.name, value };
       }
-      const allPoints = series.values;
-      const aggregate = allPoints.length
-        ? allPoints.reduce((sum, p) => sum + p.value, 0) / allPoints.length
+      const nonNull = series.values.filter((p): p is { timeOffsetSeconds: number; value: number } => p.value !== null);
+      const aggregate = nonNull.length
+        ? nonNull.reduce((sum, p) => sum + p.value, 0) / nonNull.length
         : null;
       return { name: series.name, value: aggregate };
     }),
@@ -449,8 +452,9 @@ function App() {
 
     const avg = (name: string) => {
       const s = activity.series.find((ser) => ser.name === name);
-      if (!s || !s.values.length) return null;
-      return s.values.reduce((sum, v) => sum + v.value, 0) / s.values.length;
+      if (!s) return null;
+      const nonNull = s.values.filter((v): v is { timeOffsetSeconds: number; value: number } => v.value !== null);
+      return nonNull.length ? nonNull.reduce((sum, v) => sum + v.value, 0) / nonNull.length : null;
     };
 
     return {
@@ -570,7 +574,14 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                     <span className="loaded__k">Metrics: </span>
                     {activity.series.map((s) => SERIES_SHORT[s.name] ?? s.name).join(' · ')}
                     {activity.unshownSeries.length > 0 && (
-                      <span title={activity.unshownSeries.join(', ')}> · +{activity.unshownSeries.length}</span>
+                      <> · <span className="unshown-pill">
+                        +{activity.unshownSeries.length} not shown
+                        <span className="unshown-tooltip">
+                          {activity.unshownSeries.map((name) => (
+                            <span key={name} className="unshown-tooltip__row">{name}</span>
+                          ))}
+                        </span>
+                      </span></>
                     )}
                   </span>
                 </div>
@@ -699,13 +710,15 @@ const tableSeries = activity ? getTableSeries(activity) : [];
                               <button
                                 type="button"
                                 className="lap-merge-btn"
-                                title="Merge with next lap"
                                 aria-label={`Merge lap ${row.lapNumber} with lap ${lapRows[index + 1].lapNumber}`}
                                 onClick={(e) => { e.stopPropagation(); removeLap(lapRows[index + 1].markerIndex); }}
                               >
-                                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-                                  <path d="M1.5 1.5 L7.5 7.5" />
-                                  <path d="M7.5 1.5 L1.5 7.5" />
+                                <svg className="lap-merge-half lap-merge-half--l" width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                                  <path d="M1.5 1.5 L4.5 4.5 L1.5 7.5" />
+                                </svg>
+                                <span className="lap-merge-label">merge</span>
+                                <svg className="lap-merge-half lap-merge-half--r" width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                                  <path d="M7.5 1.5 L4.5 4.5 L7.5 7.5" />
                                 </svg>
                               </button>
                             )}

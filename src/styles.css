@@ -415,6 +415,45 @@ button {
   margin: 0 10px;
 }
 
+/* Unshown metrics pill + tooltip */
+
+.unshown-pill {
+  position: relative;
+  display: inline-block;
+  cursor: default;
+}
+
+.unshown-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: -6px;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  padding: 8px 12px;
+  z-index: 100;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+  pointer-events: none;
+}
+
+[data-theme="dark"] .unshown-tooltip {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.unshown-pill:hover .unshown-tooltip {
+  display: flex;
+}
+
+.unshown-tooltip__row {
+  font-size: 10.5px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 /* Error */
 
 .alert {
@@ -684,25 +723,60 @@ button {
 /* Merge button — × icon, sits between rows on the right edge of lap-num cell */
 .lap-merge-btn {
   position: absolute;
-  bottom: -8px;
-  right: -10px;
-  width: 18px;
+  bottom: -8.5px;
+  left: calc(100% - 8px);
+  width: 16px;
   height: 16px;
-  background: var(--paper-2);
-  border: 1px solid var(--hair-2);
-  color: var(--ink-faint);
+  overflow: hidden;
+  background: transparent;
+  border: 1px solid var(--brick);
+  color: var(--brick);
   cursor: pointer;
   padding: 0;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: width 0.2s ease, background 0.15s, color 0.15s;
+}
+
+.lap-merge-half {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lap-merge-half--l {
+  left: 3px;
+}
+
+/* border-box: content = width−2px border. Idle content = 14px → 14−10.5 = 3.5px (≡ left half).
+   Hover content = 58px → 58−10.5 = 47.5px (tracks right edge as button expands). */
+.lap-merge-half--r {
+  left: calc(100% - 12px);
 }
 
 .lap-merge-btn:hover {
+  width: 60px;
   background: var(--brick);
-  border-color: var(--brick);
   color: #fff;
+}
+
+.lap-merge-label {
+  position: absolute;
+  left: 9px;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lap-merge-btn:hover .lap-merge-label {
+  opacity: 1;
 }
 
 .lap-table tfoot td {

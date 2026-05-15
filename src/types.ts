@@ -20,7 +20,7 @@ export type FitActivity = {
   recordTimestamps: number[];
   series: Array<{
     name: string;
-    values: Array<{ timeOffsetSeconds: number; value: number }>;
+    values: Array<{ timeOffsetSeconds: number; value: number | null }>;
   }>;
   unshownSeries: string[];
   rawFitPayload: ArrayBuffer;

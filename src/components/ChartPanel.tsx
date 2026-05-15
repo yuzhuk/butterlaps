@@ -153,7 +153,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
 
   const minElevation = useMemo(() => {
     if (!elevationSeries || !elevationSeries.values.length) return 0;
-    return elevationSeries.values.reduce((min, v) => Math.min(min, v.value), Infinity);
+    return elevationSeries.values.reduce((min, v) => v.value !== null ? Math.min(min, v.value) : min, Infinity);
   }, [elevationSeries]);
 
   const hoverSeriesData = useMemo((): HoverSeriesInfo[] => {
