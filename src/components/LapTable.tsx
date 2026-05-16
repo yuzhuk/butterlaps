@@ -157,8 +157,10 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
   const tableSeries = getTableSeries(activity);
 
   const avgPower = (() => {
-    const vals = lapRows.map((r) => r.values.find((v) => v.name === 'Power')?.value ?? null).filter((v): v is number => v !== null);
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    const powerSeries = activity.series.find((s) => s.name === 'Power');
+    if (!powerSeries) return null;
+    const vals = powerSeries.values.filter((p): p is { timeOffsetSeconds: number; value: number } => p.value !== null);
+    return vals.length ? vals.reduce((s, p) => s + p.value, 0) / vals.length : null;
   })();
 
   return (
