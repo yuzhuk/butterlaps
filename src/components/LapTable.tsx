@@ -131,6 +131,17 @@ function formatLapValue(value: number | null, metric?: string) {
   return String(Math.round(value));
 }
 
+const ACTIVE_THRESHOLD = 0.08;
+const RECOVERY_THRESHOLD = -0.12;
+
+function getPowerClass(powerValue: number | null, avgPower: number | null): string {
+  if (powerValue === null || avgPower === null || avgPower === 0) return '';
+  const ratio = (powerValue - avgPower) / avgPower;
+  if (ratio >= ACTIVE_THRESHOLD) return 'lap-active';
+  if (ratio <= RECOVERY_THRESHOLD) return 'lap-recovery';
+  return '';
+}
+
 interface Props {
   activity: FitActivity;
   markers: Marker[];
@@ -144,6 +155,11 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
   const lapRows = buildLapRows(activity, markers);
   const summaryRow = getSummaryRow(activity, markers);
   const tableSeries = getTableSeries(activity);
+
+  const avgPower = (() => {
+    const vals = lapRows.map((r) => r.values.find((v) => v.name === 'Power')?.value ?? null).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  })();
 
   return (
     <>
@@ -172,6 +188,7 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
             {lapRows.map((row, index) => (
               <tr
                 key={row.lapNumber}
+                className={getPowerClass(row.values.find((v) => v.name === 'Power')?.value ?? null, avgPower) || undefined}
                 onClick={() => onSelectLap(row.startOffsetSeconds, row.startOffsetSeconds + row.durationSeconds)}
               >
                 <td>
