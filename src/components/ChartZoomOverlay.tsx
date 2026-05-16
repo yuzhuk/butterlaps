@@ -141,6 +141,67 @@ function TooltipText({ x, y, anchor, children }: { x: number; y: number; anchor?
   );
 }
 
+type LabelEntry = { name: string; color: string; unit: string; value: number };
+
+function labelsAt(time: number, series: HoverSeriesInfo[]): LabelEntry[] {
+  return series
+    .map((s) => {
+      const value = interpolateAt(s.values, time);
+      if (value == null) return null;
+      return { name: s.name, color: s.color, unit: s.unit, value };
+    })
+    .filter((x): x is LabelEntry => x != null);
+}
+
+function lapOffsetAt(
+  time: number,
+  lapMode: boolean,
+  markerTimes: number[],
+  distanceValues: Array<{ timeOffsetSeconds: number; value: number | null }>,
+): { startTime: number; startDist: number } {
+  if (!lapMode) return { startTime: 0, startDist: 0 };
+  const startTime = markerTimes.slice(0, -1).reduce((best, t) => t <= time && t > best ? t : best, 0);
+  const startDist = startTime > 0 ? (interpolateAt(distanceValues, startTime) ?? 0) : 0;
+  return { startTime, startDist };
+}
+
+function TooltipBox({
+  anchorPx, plotWidth, plotHeight, header, primaryLabels, elevationLabel,
+}: {
+  anchorPx: number; plotWidth: number; plotHeight: number;
+  header: string;
+  primaryLabels: LabelEntry[];
+  elevationLabel: LabelEntry | null;
+}) {
+  const longestChars = Math.max(header.length, ...primaryLabels.map((l) => fmtValue(l.value, l.name, l.unit).length));
+  const boxW = Math.max(32, longestChars * HOVER_CHAR_W + HOVER_BOX_PAD);
+  const boxH = (1 + primaryLabels.length) * 13 + 4;
+  const boxLeft = Math.min(anchorPx + 1, plotWidth - boxW);
+  return (
+    <>
+      <rect x={boxLeft} y={0} width={boxW} height={boxH} fill="var(--plot-bg)" fillOpacity={0.65} rx={2} />
+      <text x={boxLeft + 4} y={10} textAnchor="start" fontSize={10} fontFamily="inherit"
+        style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}>
+        {header}
+      </text>
+      {primaryLabels.map((label, i) => (
+        <text key={label.name} x={boxLeft + 4} y={10 + (i + 1) * 13}
+          textAnchor="start" fontSize={10} fontFamily="inherit"
+          style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}>
+          {fmtValue(label.value, label.name, label.unit)}
+        </text>
+      ))}
+      {elevationLabel && (
+        <text x={boxLeft + 4} y={plotHeight - 8}
+          textAnchor="start" fontSize={10} fontFamily="inherit"
+          style={{ fill: elevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}>
+          {fmtValue(elevationLabel.value, elevationLabel.name, elevationLabel.unit)}
+        </text>
+      )}
+    </>
+  );
+}
+
 export function ChartZoomOverlay({
   plotWidth,
   plotHeight,
@@ -407,50 +468,13 @@ export function ChartZoomOverlay({
 
   const hoverTime = hoverPos ? domain[0] + (hoverPos.x / plotWidth) * (domain[1] - domain[0]) : null;
 
-  // In LAP mode: find the lap start marker and subtract its time/distance from the header values
-  const lapStartTime = lapMode && hoverTime != null
-    ? markerTimes.slice(0, -1).reduce((best, t) => t <= hoverTime && t > best ? t : best, 0)
-    : 0;
-  const lapStartDist = lapMode && lapStartTime > 0
-    ? (interpolateAt(hoverSeries.find((s) => s.name === 'Distance')?.values ?? [], lapStartTime) ?? 0)
-    : 0;
-
-  const allHoverLabels =
-    hoverPos && hoverTime != null
-      ? hoverSeries
-          .map((s) => {
-            const value = interpolateAt(s.values, hoverTime);
-            if (value == null) return null;
-            return { name: s.name, color: s.color, unit: s.unit, value };
-          })
-          .filter((x): x is NonNullable<typeof x> => x != null)
-      : [];
-  const primaryLabels = allHoverLabels.filter((l) => l.name !== 'Elevation' && l.name !== 'Distance');
-  const elevationLabel = allHoverLabels.find((l) => l.name === 'Elevation') ?? null;
-  const distanceLabel = allHoverLabels.find((l) => l.name === 'Distance') ?? null;
-
   const domSpan = domain[1] - domain[0];
-
   const toPx = (t: number) => domSpan > 0 ? ((t - domain[0]) / domSpan) * plotWidth : 0;
 
-  // Drag marker derived values
   const dragCurrentTime = markerDrag && plotWidth > 0
     ? domain[0] + (markerDrag.currentDisplayPx / plotWidth) * domSpan
     : null;
   const dragIsMerging = markerDrag?.mergeTarget != null;
-
-  const allDragLabels = dragCurrentTime != null
-    ? hoverSeries
-        .map((s) => {
-          const value = interpolateAt(s.values, dragCurrentTime);
-          if (value == null) return null;
-          return { name: s.name, color: s.color, unit: s.unit, value };
-        })
-        .filter((x): x is NonNullable<typeof x> => x != null)
-    : [];
-  const dragPrimaryLabels = allDragLabels.filter((l) => l.name !== 'Elevation' && l.name !== 'Distance');
-  const dragElevationLabel = allDragLabels.find((l) => l.name === 'Elevation') ?? null;
-  const dragDistanceLabel = allDragLabels.find((l) => l.name === 'Distance') ?? null;
 
   const cursor = markerDrag ? 'grabbing' : hoveredMarkerTime != null ? 'grab' : 'crosshair';
 
@@ -504,124 +528,43 @@ export function ChartZoomOverlay({
 
         {/* Dragged marker */}
         {markerDrag && dragCurrentTime != null && (() => {
-          const dragLapStartTime = lapMode
-            ? markerTimes.slice(0, -1).reduce((best, t) => t <= dragCurrentTime && t > best ? t : best, 0)
-            : 0;
-          const dragLapStartDist = lapMode && dragLapStartTime > 0
-            ? (interpolateAt(hoverSeries.find((s) => s.name === 'Distance')?.values ?? [], dragLapStartTime) ?? 0)
-            : 0;
-          const dragDisplayTime = dragCurrentTime - dragLapStartTime;
-          const dragDisplayDist = dragDistanceLabel != null ? dragDistanceLabel.value - dragLapStartDist : null;
-          const headerStr = fmtTime(dragDisplayTime) + (dragDisplayDist != null ? ` · ${fmtDistance(dragDisplayDist)}` : '');
-          const longestChars = Math.max(
-            headerStr.length,
-            ...dragPrimaryLabels.map((l) => fmtValue(l.value, l.name, l.unit).length),
-          );
-          const boxW = Math.max(32, longestChars * HOVER_CHAR_W + HOVER_BOX_PAD);
-          const boxH = (1 + dragPrimaryLabels.length) * 13 + 4;
-          const boxLeft = Math.min(markerDrag.currentDisplayPx + 1, plotWidth - boxW);
+          const labels = labelsAt(dragCurrentTime, hoverSeries);
+          const primaryLabels = labels.filter((l) => l.name !== 'Elevation' && l.name !== 'Distance');
+          const elevationLabel = labels.find((l) => l.name === 'Elevation') ?? null;
+          const distanceLabel = labels.find((l) => l.name === 'Distance') ?? null;
+          const distanceValues = hoverSeries.find((s) => s.name === 'Distance')?.values ?? [];
+          const { startTime, startDist } = lapOffsetAt(dragCurrentTime, lapMode, markerTimes, distanceValues);
+          const displayDist = distanceLabel ? distanceLabel.value - startDist : null;
+          const header = fmtTime(dragCurrentTime - startTime) + (displayDist != null ? ` · ${fmtDistance(displayDist)}` : '');
+          const stroke = dragIsMerging ? '#b8321f' : '#b85a18';
           return (
             <>
-              <line
-                x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
-                stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
-                strokeWidth={9} strokeOpacity={0.2}
-              />
-              <line
-                x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
-                stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
-                strokeWidth={1.5}
-              />
-              <rect x={boxLeft} y={0} width={boxW} height={boxH}
-                fill="var(--plot-bg)" fillOpacity={0.65} rx={2} />
-              <text
-                x={boxLeft + 4} y={10}
-                textAnchor="start" fontSize={10} fontFamily="inherit"
-                style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-              >
-                {headerStr}
-              </text>
-              {dragPrimaryLabels.map((label, i) => (
-                <text
-                  key={label.name}
-                  x={boxLeft + 4}
-                  y={10 + (i + 1) * 13}
-                  textAnchor="start"
-                  fontSize={10}
-                  fontFamily="inherit"
-                  style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-                >
-                  {fmtValue(label.value, label.name, label.unit)}
-                </text>
-              ))}
-              {dragElevationLabel && (
-                <text
-                  x={boxLeft + 4}
-                  y={plotHeight - 8}
-                  textAnchor="start"
-                  fontSize={10}
-                  fontFamily="inherit"
-                  style={{ fill: dragElevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-                >
-                  {fmtValue(dragElevationLabel.value, dragElevationLabel.name, dragElevationLabel.unit)}
-                </text>
-              )}
+              <line x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
+                stroke={stroke} strokeWidth={9} strokeOpacity={0.2} />
+              <line x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
+                stroke={stroke} strokeWidth={1.5} />
+              <TooltipBox anchorPx={markerDrag.currentDisplayPx} plotWidth={plotWidth} plotHeight={plotHeight}
+                header={header} primaryLabels={primaryLabels} elevationLabel={elevationLabel} />
             </>
           );
         })()}
 
         {/* Hover cursor (suppressed during marker drag) */}
-        {hoverPos && !drag && !markerDrag && (() => {
-          const displayTime = hoverTime! - lapStartTime;
-          const displayDist = distanceLabel ? distanceLabel.value - lapStartDist : null;
-          const headerStr = fmtTime(displayTime) + (displayDist != null ? ` · ${fmtDistance(displayDist)}` : '');
-          const longestChars = Math.max(
-            headerStr.length,
-            ...primaryLabels.map((l) => fmtValue(l.value, l.name, l.unit).length),
-          );
-          const boxW = Math.max(32, longestChars * HOVER_CHAR_W + HOVER_BOX_PAD);
-          const boxLeft = Math.min(hoverPos.x + 1, plotWidth - boxW);
-          const boxH = (1 + primaryLabels.length) * 13 + 4;
+        {hoverPos && !drag && !markerDrag && hoverTime != null && (() => {
+          const labels = labelsAt(hoverTime, hoverSeries);
+          const primaryLabels = labels.filter((l) => l.name !== 'Elevation' && l.name !== 'Distance');
+          const elevationLabel = labels.find((l) => l.name === 'Elevation') ?? null;
+          const distanceLabel = labels.find((l) => l.name === 'Distance') ?? null;
+          const distanceValues = hoverSeries.find((s) => s.name === 'Distance')?.values ?? [];
+          const { startTime, startDist } = lapOffsetAt(hoverTime, lapMode, markerTimes, distanceValues);
+          const displayDist = distanceLabel ? distanceLabel.value - startDist : null;
+          const header = fmtTime(hoverTime - startTime) + (displayDist != null ? ` · ${fmtDistance(displayDist)}` : '');
           return (
             <>
-              <line
-                x1={hoverPos.x} y1={0} x2={hoverPos.x} y2={plotHeight}
-                stroke="#4a9068" strokeWidth={0.5} strokeOpacity={0.9}
-              />
-              <rect x={boxLeft} y={0} width={boxW} height={boxH}
-                fill="var(--plot-bg)" fillOpacity={0.65} rx={2} />
-              <text
-                x={boxLeft + 4} y={10}
-                textAnchor="start" fontSize={10} fontFamily="inherit"
-                style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-              >
-                {fmtTime(displayTime)}{displayDist != null ? ` · ${fmtDistance(displayDist)}` : ''}
-              </text>
-              {primaryLabels.map((label, i) => (
-                <text
-                  key={label.name}
-                  x={boxLeft + 4}
-                  y={10 + (i + 1) * 13}
-                  textAnchor="start"
-                  fontSize={10}
-                  fontFamily="inherit"
-                  style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-                >
-                  {fmtValue(label.value, label.name, label.unit)}
-                </text>
-              ))}
-              {elevationLabel && (
-                <text
-                  x={boxLeft + 4}
-                  y={plotHeight - 8}
-                  textAnchor="start"
-                  fontSize={10}
-                  fontFamily="inherit"
-                  style={{ fill: elevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-                >
-                  {fmtValue(elevationLabel.value, elevationLabel.name, elevationLabel.unit)}
-                </text>
-              )}
+              <line x1={hoverPos.x} y1={0} x2={hoverPos.x} y2={plotHeight}
+                stroke="#4a9068" strokeWidth={0.5} strokeOpacity={0.9} />
+              <TooltipBox anchorPx={hoverPos.x} plotWidth={plotWidth} plotHeight={plotHeight}
+                header={header} primaryLabels={primaryLabels} elevationLabel={elevationLabel} />
             </>
           );
         })()}
