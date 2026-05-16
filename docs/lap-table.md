@@ -29,3 +29,7 @@ Total / Avg row — pace is derived from total distance ÷ total time, not a sim
 - clicking a data row zooms the chart to that lap
 - clicking the footer row resets zoom
 - zebra striping on alternating rows
+
+## Hint
+
+A `click a lap to zoom in chart` tip is displayed below the table in the same style as the chart footer hint.

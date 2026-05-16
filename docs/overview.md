@@ -43,7 +43,8 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 - FIT upload — file picker and drag-and-drop; supports multi-lap Stryd/Apple Watch files
 - FIT parsing with metadata: data point count, recorded date, detected metrics
-- interactive chart with series toggles (with localStorage persistence) and zoom
+- interactive chart with series toggles (with localStorage persistence), zoom, and per-series y-axis domain rules
+- TOTAL/LAP toggle for hover tooltip time/distance reference (persisted to localStorage)
 - cursor snap-pull — hover and drag endpoints slide smoothly toward nearest data point
 - lap visualisation as vertical reference lines on the chart
 - drag lap markers horizontally on the chart; marker snaps to nearest data point on release
@@ -76,6 +77,8 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 - running
 - cycling
+- walking
+- hiking
 - swimming
 
 Cadence unit adapts: `spm` for running, `rpm` for cycling and swimming.

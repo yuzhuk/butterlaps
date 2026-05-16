@@ -22,7 +22,7 @@ Narrow: chart stacked above lap details.
 - toggleable — default ON if data is present
 
 ### Primary series
-Toggleable, each on its own auto-scaled Y-axis. Toggle order (left to right):
+Toggleable, each on its own independently-scaled Y-axis. Toggle order (left to right):
 
 | Series     | Default | Color  |
 |------------|---------|--------|
@@ -30,6 +30,27 @@ Toggleable, each on its own auto-scaled Y-axis. Toggle order (left to right):
 | Power      | OFF     | amber  |
 | Heart Rate | OFF     | red    |
 | Cadence    | OFF     | green  |
+
+#### Y-axis domain rules (per series)
+
+All domain bounds are computed from each series' own data — no axis shares scale with another.
+
+- **Elevation**: `dataMin − 10` floor, `dataMax + 30` ceiling.
+- **Pace**: bounds computed from values within a sport-specific cap (15:00/km running, 25:00 walking, 30:00 hiking, 40:00 swimming) to exclude GPS drift and stops. 15% symmetric padding added. Values outside the range are clipped via `allowDataOverflow`.
+- **Power**: fixed floor at 0 W (coasting is a valid zero), 15% ceiling headroom.
+- **Heart Rate**: if any values are 0 (sensor dropout), floor = `min(non-zero) / 2` and those points are clipped; otherwise auto floor. 15% ceiling headroom. Values above 220 bpm are excluded from ceiling computation to prevent sensor glitches from compressing the chart.
+- **Cadence**: fixed floor at 0, 15% ceiling headroom.
+- **Speed**: auto-scaled.
+
+---
+
+## TOTAL / LAP Toggle
+
+A compact pill toggle sits at the right end of the series chip row, below a `TIME · DIST` label.
+
+- **TOTAL** (default): the hover tooltip header shows elapsed time and distance since the start of the workout.
+- **LAP**: the header shows elapsed time and distance since the start of the current lap. The Finish marker is excluded from lap-start detection so hovering at the very end shows last-lap values.
+- Preference is persisted to `localStorage`.
 
 ---
 
@@ -45,7 +66,8 @@ Toggleable, each on its own auto-scaled Y-axis. Toggle order (left to right):
 - chart SVG is inert to pointer events; a transparent overlay handles all input
 - hovering shows sliding active dots on each visible series
 - cursor snap-pull: hover position slides smoothly toward the nearest recorded data point within 30 px
-- no tooltip popup, no vertical cursor line, no focus rings on SVG elements
+- hovering shows a tooltip box with time · distance in the header and active series values below; box auto-sizes to content and anchors left of cursor, flipping to avoid the right edge
+- no focus rings on SVG elements
 
 ---
 
