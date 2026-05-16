@@ -131,8 +131,8 @@ function formatLapValue(value: number | null, metric?: string) {
   return String(Math.round(value));
 }
 
-const ACTIVE_THRESHOLD = 0.08;
-const RECOVERY_THRESHOLD = -0.12;
+const ACTIVE_THRESHOLD = 0.05;
+const RECOVERY_THRESHOLD = -0.08;
 
 function getPowerClass(powerValue: number | null, avgPower: number | null): string {
   if (powerValue === null || avgPower === null || avgPower === 0) return '';
@@ -157,10 +157,13 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
   const tableSeries = getTableSeries(activity);
 
   const avgPower = (() => {
-    const powerSeries = activity.series.find((s) => s.name === 'Power');
-    if (!powerSeries) return null;
-    const vals = powerSeries.values.filter((p): p is { timeOffsetSeconds: number; value: number } => p.value !== null);
-    return vals.length ? vals.reduce((s, p) => s + p.value, 0) / vals.length : null;
+    const vals = lapRows
+      .map((r) => r.values.find((v) => v.name === 'Power')?.value ?? null)
+      .filter((v): v is number => v !== null)
+      .sort((a, b) => a - b);
+    if (!vals.length) return null;
+    const mid = Math.floor(vals.length / 2);
+    return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
   })();
 
   return (

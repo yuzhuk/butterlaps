@@ -170,6 +170,22 @@ function App() {
     if (droppedFile) await loadFile(droppedFile);
   };
 
+  // TESTING ONLY — remove before release
+  useEffect(() => {
+    const onDragOver = (e: DragEvent) => e.preventDefault();
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      const droppedFile = e.dataTransfer?.files[0];
+      if (droppedFile) loadFile(droppedFile);
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
+
   const loadFile = async (selectedFile: File) => {
     setError(null);
     setIsLoading(true);

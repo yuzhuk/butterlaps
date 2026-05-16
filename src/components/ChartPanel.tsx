@@ -359,7 +359,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
                 fill="url(#elevGradient)"
                 stroke="#9c8060"
                 activeDot={false}
-                strokeWidth={1}
+                strokeWidth={0.75}
                 dot={false}
                 isAnimationActive={false}
               />
@@ -379,7 +379,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
                     xAxisId={0}
                     yAxisId={SERIES_YAXIS[name]}
                     stroke={SERIES_COLORS[name]}
-                    strokeWidth={1.5}
+                    strokeWidth={1.1}
                     dot={false}
                     isAnimationActive={false}
                   />
