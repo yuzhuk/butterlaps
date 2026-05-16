@@ -452,7 +452,6 @@ export function ChartZoomOverlay({
   const dragElevationLabel = allDragLabels.find((l) => l.name === 'Elevation') ?? null;
   const dragDistanceLabel = allDragLabels.find((l) => l.name === 'Distance') ?? null;
   const dragLabelOnLeft = markerDrag ? markerDrag.currentDisplayPx > plotWidth * 0.65 : false;
-  const dragLabelX = markerDrag ? (dragLabelOnLeft ? markerDrag.currentDisplayPx - 6 : markerDrag.currentDisplayPx + 6) : 0;
 
   const cursor = markerDrag ? 'grabbing' : hoveredMarkerTime != null ? 'grab' : 'crosshair';
 
@@ -505,48 +504,74 @@ export function ChartZoomOverlay({
         )}
 
         {/* Dragged marker */}
-        {markerDrag && dragCurrentTime != null && (
-          <>
-            <line
-              x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
-              stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
-              strokeWidth={9} strokeOpacity={0.2}
-            />
-            <line
-              x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
-              stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
-              strokeWidth={1.5}
-            />
-            <TooltipText x={markerDrag.currentDisplayPx} y={-4} anchor={tooltipAnchor(markerDrag.currentDisplayPx, plotWidth)}>
-              {fmtTime(dragCurrentTime)}{dragDistanceLabel != null ? ` · ${fmtDistance(dragDistanceLabel.value)}` : ''}
-            </TooltipText>
-            {dragPrimaryLabels.map((label, i) => (
+        {markerDrag && dragCurrentTime != null && (() => {
+          const dragLapStartTime = lapMode
+            ? markerTimes.slice(0, -1).reduce((best, t) => t <= dragCurrentTime && t > best ? t : best, 0)
+            : 0;
+          const dragLapStartDist = lapMode && dragLapStartTime > 0
+            ? (interpolateAt(hoverSeries.find((s) => s.name === 'Distance')?.values ?? [], dragLapStartTime) ?? 0)
+            : 0;
+          const dragDisplayTime = dragCurrentTime - dragLapStartTime;
+          const dragDisplayDist = dragDistanceLabel != null ? dragDistanceLabel.value - dragLapStartDist : null;
+          const headerStr = fmtTime(dragDisplayTime) + (dragDisplayDist != null ? ` · ${fmtDistance(dragDisplayDist)}` : '');
+          const longestChars = Math.max(
+            headerStr.length,
+            ...dragPrimaryLabels.map((l) => fmtValue(l.value, l.name, l.unit).length),
+          );
+          const boxW = Math.max(32, longestChars * HOVER_CHAR_W + HOVER_BOX_PAD);
+          const boxH = (1 + dragPrimaryLabels.length) * 13 + 4;
+          const boxLeft = dragLabelOnLeft
+            ? markerDrag.currentDisplayPx - boxW - 1
+            : markerDrag.currentDisplayPx + 1;
+          return (
+            <>
+              <line
+                x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
+                stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
+                strokeWidth={9} strokeOpacity={0.2}
+              />
+              <line
+                x1={markerDrag.currentDisplayPx} y1={0} x2={markerDrag.currentDisplayPx} y2={plotHeight}
+                stroke={dragIsMerging ? '#b8321f' : '#b85a18'}
+                strokeWidth={1.5}
+              />
+              <rect x={boxLeft} y={0} width={boxW} height={boxH}
+                fill="var(--plot-bg)" fillOpacity={0.65} rx={2} />
               <text
-                key={label.name}
-                x={dragLabelX}
-                y={10 + i * 13}
-                textAnchor={dragLabelOnLeft ? 'end' : 'start'}
-                fontSize={10}
-                fontFamily="inherit"
-                style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
+                x={boxLeft + 4} y={10}
+                textAnchor="start" fontSize={10} fontFamily="inherit"
+                style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
-                {fmtValue(label.value, label.name, label.unit)}
+                {headerStr}
               </text>
-            ))}
-            {dragElevationLabel && (
-              <text
-                x={dragLabelX}
-                y={plotHeight - 8}
-                textAnchor={dragLabelOnLeft ? 'end' : 'start'}
-                fontSize={10}
-                fontFamily="inherit"
-                style={{ fill: dragElevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
-              >
-                {fmtValue(dragElevationLabel.value, dragElevationLabel.name, dragElevationLabel.unit)}
-              </text>
-            )}
-          </>
-        )}
+              {dragPrimaryLabels.map((label, i) => (
+                <text
+                  key={label.name}
+                  x={boxLeft + 4}
+                  y={10 + (i + 1) * 13}
+                  textAnchor="start"
+                  fontSize={10}
+                  fontFamily="inherit"
+                  style={{ fill: label.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
+                >
+                  {fmtValue(label.value, label.name, label.unit)}
+                </text>
+              ))}
+              {dragElevationLabel && (
+                <text
+                  x={boxLeft + 4}
+                  y={plotHeight - 8}
+                  textAnchor="start"
+                  fontSize={10}
+                  fontFamily="inherit"
+                  style={{ fill: dragElevationLabel.color, stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
+                >
+                  {fmtValue(dragElevationLabel.value, dragElevationLabel.name, dragElevationLabel.unit)}
+                </text>
+              )}
+            </>
+          );
+        })()}
 
         {/* Hover cursor (suppressed during marker drag) */}
         {hoverPos && !drag && !markerDrag && (() => {
