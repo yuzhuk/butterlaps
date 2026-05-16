@@ -451,7 +451,6 @@ export function ChartZoomOverlay({
   const dragPrimaryLabels = allDragLabels.filter((l) => l.name !== 'Elevation' && l.name !== 'Distance');
   const dragElevationLabel = allDragLabels.find((l) => l.name === 'Elevation') ?? null;
   const dragDistanceLabel = allDragLabels.find((l) => l.name === 'Distance') ?? null;
-  const dragLabelOnLeft = markerDrag ? markerDrag.currentDisplayPx > plotWidth * 0.65 : false;
 
   const cursor = markerDrag ? 'grabbing' : hoveredMarkerTime != null ? 'grab' : 'crosshair';
 
@@ -520,9 +519,7 @@ export function ChartZoomOverlay({
           );
           const boxW = Math.max(32, longestChars * HOVER_CHAR_W + HOVER_BOX_PAD);
           const boxH = (1 + dragPrimaryLabels.length) * 13 + 4;
-          const boxLeft = dragLabelOnLeft
-            ? markerDrag.currentDisplayPx - boxW - 1
-            : markerDrag.currentDisplayPx + 1;
+          const boxLeft = Math.min(markerDrag.currentDisplayPx + 1, plotWidth - boxW);
           return (
             <>
               <line
