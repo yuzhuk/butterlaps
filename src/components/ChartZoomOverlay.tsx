@@ -30,6 +30,7 @@ interface Props {
   onAddMarker: (t: number) => void;
   onMoveMarker: (originalTime: number, newTime: number) => void;
   onMergeMarker: (draggedTime: number) => void;
+  lapMode: boolean;
 }
 
 function findNearestTimestamp(timestamps: number[], t: number): number | null {
@@ -155,6 +156,7 @@ export function ChartZoomOverlay({
   onAddMarker,
   onMoveMarker,
   onMergeMarker,
+  lapMode,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -405,6 +407,14 @@ export function ChartZoomOverlay({
 
   const hoverTime = hoverPos ? domain[0] + (hoverPos.x / plotWidth) * (domain[1] - domain[0]) : null;
 
+  // In LAP mode: find the lap start marker and subtract its time/distance from the header values
+  const lapStartTime = lapMode && hoverTime != null
+    ? markerTimes.slice(0, -1).reduce((best, t) => t <= hoverTime && t > best ? t : best, 0)
+    : 0;
+  const lapStartDist = lapMode && lapStartTime > 0
+    ? (interpolateAt(hoverSeries.find((s) => s.name === 'Distance')?.values ?? [], lapStartTime) ?? 0)
+    : 0;
+
   const allHoverLabels =
     hoverPos && hoverTime != null
       ? hoverSeries
@@ -540,7 +550,9 @@ export function ChartZoomOverlay({
 
         {/* Hover cursor (suppressed during marker drag) */}
         {hoverPos && !drag && !markerDrag && (() => {
-          const headerStr = fmtTime(hoverTime!) + (distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : '');
+          const displayTime = hoverTime! - lapStartTime;
+          const displayDist = distanceLabel ? distanceLabel.value - lapStartDist : null;
+          const headerStr = fmtTime(displayTime) + (displayDist != null ? ` · ${fmtDistance(displayDist)}` : '');
           const longestChars = Math.max(
             headerStr.length,
             ...primaryLabels.map((l) => fmtValue(l.value, l.name, l.unit).length),
@@ -561,7 +573,7 @@ export function ChartZoomOverlay({
                 textAnchor="start" fontSize={10} fontFamily="inherit"
                 style={{ fill: 'var(--ink)', stroke: 'var(--plot-bg)', strokeWidth: 2.5, paintOrder: 'stroke' }}
               >
-                {fmtTime(hoverTime!)}{distanceLabel ? ` · ${fmtDistance(distanceLabel.value)}` : ''}
+                {fmtTime(displayTime)}{displayDist != null ? ` · ${fmtDistance(displayDist)}` : ''}
               </text>
               {primaryLabels.map((label, i) => (
                 <text

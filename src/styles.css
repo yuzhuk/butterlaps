@@ -541,6 +541,51 @@ button {
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 12px;
+  align-items: center;
+}
+
+.lap-mode-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  align-self: flex-end;
+  gap: 3px;
+}
+
+.lap-mode-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: var(--ink);
+  letter-spacing: 0.06em;
+}
+
+.lap-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--hair-2);
+  overflow: hidden;
+}
+
+.lap-mode-btn {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 500;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: var(--paper-2);
+  border: none;
+  padding: 4px 7px;
+  cursor: pointer;
+}
+
+.lap-mode-btn + .lap-mode-btn {
+  border-left: 1px solid var(--hair-2);
+}
+
+.lap-mode-btn.is-active {
+  background: var(--paper-3);
+  color: var(--ink);
 }
 
 .series-chip {

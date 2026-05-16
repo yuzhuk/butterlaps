@@ -12,6 +12,7 @@ const ZOOM_PADDING = 0.10;
 const PRIMARY_SERIES = ['Pace', 'Speed', 'Power', 'Heart Rate', 'Cadence'] as const;
 
 const STORAGE_BASE = 'butterlaps-active-series';
+const LAP_MODE_KEY = 'butterlaps-lap-mode';
 const SPORT_FALLBACK_ORDER = ['running', 'cycling', 'swimming'];
 
 // Pace and Speed are the same toggle concept; stored as 'Pace', resolved on read.
@@ -111,6 +112,7 @@ interface Props {
 export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAddMarker, onMoveMarker, onMergeMarker }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [lapMode, setLapMode] = useState(() => localStorage.getItem(LAP_MODE_KEY) === '1');
 
   const [activeSeries, setActiveSeries] = useState<Set<string>>(() => {
     const available = new Set(activity.series.map((s) => s.name));
@@ -291,6 +293,21 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             </button>
           );
         })}
+        <div className="lap-mode-widget">
+          <span className="lap-mode-label">TIME · DIST</span>
+          <div className="lap-mode-toggle">
+            <button
+              type="button"
+              className={`lap-mode-btn${!lapMode ? ' is-active' : ''}`}
+              onClick={() => { setLapMode(false); localStorage.setItem(LAP_MODE_KEY, '0'); }}
+            >TOTAL</button>
+            <button
+              type="button"
+              className={`lap-mode-btn${lapMode ? ' is-active' : ''}`}
+              onClick={() => { setLapMode(true); localStorage.setItem(LAP_MODE_KEY, '1'); }}
+            >LAP</button>
+          </div>
+        </div>
       </div>
 
       <div ref={containerRef} className="chart-wrapper">
@@ -393,6 +410,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             onAddMarker={onAddMarker}
             onMoveMarker={onMoveMarker}
             onMergeMarker={onMergeMarker}
+            lapMode={lapMode}
           />
         )}
       </div>
