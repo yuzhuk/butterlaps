@@ -224,6 +224,7 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
           )}
         </table>
       </div>
+      <p className="plot-foot">click a lap to zoom in chart</p>
     </>
   );
 }

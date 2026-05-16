@@ -778,13 +778,13 @@ button {
 }
 
 .lap-merge-half--l {
-  left: 3px;
+  left: 2.5px;
 }
 
-/* border-box: content = width−2px border. Idle content = 14px → 14−10.5 = 3.5px (≡ left half).
-   Hover content = 58px → 58−10.5 = 47.5px (tracks right edge as button expands). */
+/* border-box: content = width−2px border. Idle content = 14px → 14−11.5 = 2.5px (≡ left half).
+   Hover content = 58px → 58−11.5 = 46.5px (tracks right edge as button expands). */
 .lap-merge-half--r {
-  left: calc(100% - 12px);
+  left: calc(100% - 11.5px);
 }
 
 .lap-merge-btn:hover {
