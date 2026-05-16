@@ -457,9 +457,11 @@ function App() {
                     )}
                   </span>
                 </div>
-                <div className="loaded__meta">
-                  <span><span className="loaded__k">Lap dev fields: </span>{activity.lapDevFields.length > 0 ? activity.lapDevFields.join(', ') : 'none'}</span>
-                </div>
+                {activity.lapDevFields.length > 0 && (
+                  <div className="loaded__meta">
+                    <span><span className="loaded__k">Lap dev fields: </span>{activity.lapDevFields.join(', ')}</span>
+                  </div>
+                )}
 
                 {activityMetrics && (
                   <div className="metric-line">
