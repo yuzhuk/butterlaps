@@ -176,6 +176,66 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType
   return series;
 }
 
+const APPLE_WATCH_MODELS: Record<string, string> = {
+  'Watch1,1': 'Apple Watch (1st gen)', 'Watch1,2': 'Apple Watch (1st gen)',
+  'Watch2,3': 'Apple Watch Series 2',  'Watch2,4': 'Apple Watch Series 2',
+  'Watch2,6': 'Apple Watch Series 1',  'Watch2,7': 'Apple Watch Series 1',
+  'Watch3,1': 'Apple Watch Series 3',  'Watch3,2': 'Apple Watch Series 3',
+  'Watch3,3': 'Apple Watch Series 3',  'Watch3,4': 'Apple Watch Series 3',
+  'Watch4,1': 'Apple Watch Series 4',  'Watch4,2': 'Apple Watch Series 4',
+  'Watch4,3': 'Apple Watch Series 4',  'Watch4,4': 'Apple Watch Series 4',
+  'Watch5,1': 'Apple Watch Series 5',  'Watch5,2': 'Apple Watch Series 5',
+  'Watch5,3': 'Apple Watch Series 5',  'Watch5,4': 'Apple Watch Series 5',
+  'Watch5,9': 'Apple Watch SE',        'Watch5,10': 'Apple Watch SE',
+  'Watch5,11': 'Apple Watch SE',       'Watch5,12': 'Apple Watch SE',
+  'Watch6,1': 'Apple Watch Series 6',  'Watch6,2': 'Apple Watch Series 6',
+  'Watch6,3': 'Apple Watch Series 6',  'Watch6,4': 'Apple Watch Series 6',
+  'Watch6,5': 'Apple Watch Series 7',  'Watch6,6': 'Apple Watch Series 7',
+  'Watch6,7': 'Apple Watch Series 7',  'Watch6,8': 'Apple Watch Series 7',
+  'Watch6,9': 'Apple Watch Series 7',
+  'Watch6,10': 'Apple Watch SE (2nd gen)', 'Watch6,11': 'Apple Watch SE (2nd gen)',
+  'Watch6,12': 'Apple Watch SE (2nd gen)', 'Watch6,13': 'Apple Watch SE (2nd gen)',
+  'Watch6,14': 'Apple Watch Series 8', 'Watch6,15': 'Apple Watch Series 8',
+  'Watch6,16': 'Apple Watch Series 8', 'Watch6,17': 'Apple Watch Series 8',
+  'Watch6,18': 'Apple Watch Ultra',
+  'Watch7,1': 'Apple Watch Series 9',  'Watch7,2': 'Apple Watch Series 9',
+  'Watch7,3': 'Apple Watch Series 9',  'Watch7,4': 'Apple Watch Series 9',
+  'Watch7,5': 'Apple Watch Ultra 2',
+  'Watch7,6': 'Apple Watch Series 10', 'Watch7,7': 'Apple Watch Series 10',
+  'Watch7,8': 'Apple Watch Series 10', 'Watch7,9': 'Apple Watch Series 10',
+  'Watch7,10': 'Apple Watch Series 10',
+  'Watch7,11': 'Apple Watch SE (3rd gen)', 'Watch7,12': 'Apple Watch Ultra 3',
+  'Watch7,13': 'Apple Watch SE (3rd gen)', 'Watch7,14': 'Apple Watch SE (3rd gen)',
+  'Watch7,15': 'Apple Watch SE (3rd gen)',
+  'Watch7,16': 'Apple Watch Series 11', 'Watch7,17': 'Apple Watch Series 11',
+  'Watch7,18': 'Apple Watch Series 11', 'Watch7,19': 'Apple Watch Series 11',
+  'Watch7,20': 'Apple Watch Series 11',
+};
+
+function getDeviceInfo(parsedFit: any): { device?: string; deviceApp?: string } {
+  const infos: Array<any> = parsedFit.device_infos ?? [];
+  const primary = infos.find((d) => d.device_index === 0) ?? infos.find((d) => d.manufacturer);
+  if (!primary) return {};
+
+  // Apple Watch and some SDK devices use manufacturer code 255 ("development").
+  // product_name holds the hardware identifier (e.g. "Watch6,18"); descriptor holds
+  // the recording app/service name (e.g. "Stryd (81421)"). Surface both separately.
+  if (primary.manufacturer === 'development') {
+    const productName: string | undefined = primary.product_name;
+    const device = productName ? APPLE_WATCH_MODELS[productName] : undefined;
+    const descriptor: string | undefined = primary.descriptor;
+    const deviceApp = descriptor ? descriptor.replace(/\s*\(.*\)$/, '').trim() : undefined;
+    return { device, deviceApp };
+  }
+
+  if (!primary.manufacturer) return {};
+  const mfr = String(primary.manufacturer).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const product = primary.product_name ?? primary.garmin_product ?? primary.product;
+  if (!product || typeof product === 'number') return { device: mfr };
+  const productName = String(product).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return { device: `${mfr} ${productName}` };
+}
+
 function getDurationSeconds(parsedFit: any, baselineMs: number, records: Array<any>): number {
   const activityDuration = parsedFit.activity?.total_timer_time;
   if (typeof activityDuration === 'number') {
@@ -320,10 +380,22 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
     swimUnshown = ['Elevation'];
   }
 
+  const devFieldNames = new Set<string>(
+    (parsedFit.activity?.field_descriptions ?? parsedFit.field_descriptions ?? []).map((d: any) => d.field_name as string)
+  );
+  const allLaps: Array<any> = (parsedFit as any).laps ?? (parsedFit.activity as any)?.laps ?? [];
+  const lapDevFieldSet = new Set<string>();
+  for (const lap of allLaps) {
+    for (const key of Object.keys(lap)) {
+      if (devFieldNames.has(key)) lapDevFieldSet.add(key);
+    }
+  }
+
   return {
     fileName: file.name,
     rawFitPayload: buffer,
     unshownSeries: [...swimUnshown, ...detectUnshownSeries(trimmedRecords)],
+    lapDevFields: [...lapDevFieldSet].sort(),
     summary: {
       durationSeconds,
       distanceMeters: getDistanceMeters(parsedFit, trimmedRecords),
@@ -331,7 +403,11 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
       hasPower: trimmedRecords.some((record) => record.power != null || (record as unknown as Record<string, unknown>)['Power'] != null),
       hasCadence: trimmedRecords.some((record) => record.cadence != null),
       activityType,
+      subSport: sessions[0]?.sub_sport && sessions[0].sub_sport !== 'generic'
+        ? sessions[0].sub_sport.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+        : undefined,
       startTime: baselineMs > 0 ? baselineMs : null,
+      ...getDeviceInfo(parsedFit),
     },
     markers: buildMarkers(parsedFit, baselineMs, trimmedRecords, recordTimestamps, durationSeconds),
     recordTimestamps,

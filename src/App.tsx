@@ -160,7 +160,7 @@ function App() {
 
   const openFilePicker = () => fileInputRef.current?.click();
 
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setIsDragOver(true); };
   const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false); };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -172,16 +172,28 @@ function App() {
 
   // TESTING ONLY — remove before release
   useEffect(() => {
-    const onDragOver = (e: DragEvent) => e.preventDefault();
+    const signalCopy = (e: DragEvent) => {
+      e.preventDefault();
+      if (!e.dataTransfer) return;
+      const allowed = e.dataTransfer.effectAllowed;
+      // Only signal 'copy' if the drag source permits it; otherwise honour 'move'
+      // so Finder doesn't get conflicting signals and visually removes the item.
+      e.dataTransfer.dropEffect =
+        allowed === 'all' || allowed === 'copy' || allowed === 'copyMove' || allowed === 'copyLink'
+          ? 'copy'
+          : 'move';
+    };
     const onDrop = (e: DragEvent) => {
       e.preventDefault();
       const droppedFile = e.dataTransfer?.files[0];
       if (droppedFile) loadFile(droppedFile);
     };
-    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragenter', signalCopy);
+    window.addEventListener('dragover', signalCopy);
     window.addEventListener('drop', onDrop);
     return () => {
-      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragenter', signalCopy);
+      window.removeEventListener('dragover', signalCopy);
       window.removeEventListener('drop', onDrop);
     };
   }, []);
@@ -194,7 +206,14 @@ function App() {
         throw new Error('Only .fit files are supported');
       }
       const parsedActivity = await parseFitFile(selectedFile);
-      validateFitForEditing(parsedActivity);
+      try {
+        validateFitForEditing(parsedActivity);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('developer fields in lap messages') && parsedActivity.lapDevFields.length > 0) {
+          throw new Error(`${err.message}: ${parsedActivity.lapDevFields.join(', ')}`);
+        }
+        throw err;
+      }
       setFile(selectedFile);
       setActivity(parsedActivity);
       setMarkers(parsedActivity.markers);
@@ -252,6 +271,7 @@ function App() {
     setMarkers((prev) => prev.filter((m) => m.timeOffsetSeconds !== draggedTime));
   };
 
+  // TESTING ONLY — reloads file instead of just resetting markers; revert before release
   const resetMarkers = () => {
     if (file) loadFile(file);
   };
@@ -327,6 +347,9 @@ function App() {
   })() : null;
 
   const sport = activity?.summary.activityType ?? null;
+  const subSport = activity?.summary.subSport ?? null;
+  const device = activity?.summary.device ?? null;
+  const deviceApp = activity?.summary.deviceApp ?? null;
 
   return (
     <div data-theme={resolved}>
@@ -337,7 +360,7 @@ function App() {
           <span className="brand-mark">◐</span>
           BUTTERLAPS
         </span>
-        <span className="status-bar__cell">VER. {version}</span>
+        <span className="status-bar__cell">VER. {version.split('.').slice(0, 3).join('.')}</span>
         <span className="status-bar__spacer" />
         <button
           type="button"
@@ -402,6 +425,9 @@ function App() {
                   <span className="loaded__icon">▤</span>
                   <span className="loaded__name">{file.name}</span>
                   {sport && <><span className="loaded__sep">·</span><span className="loaded__k">{sport}</span></>}
+                  {subSport && <><span className="loaded__sep">·</span><span className="loaded__k">{subSport}</span></>}
+                  {device && <><span className="loaded__sep">·</span><span className="loaded__k">{device}</span></>}
+                  {deviceApp && <><span className="loaded__sep">·</span><span className="loaded__k">{deviceApp}</span></>}
                   <span className="loaded__spacer" />
                   <button type="button" className="btn-danger" onClick={handleClear}>Clear</button>
                 </div>
@@ -430,6 +456,9 @@ function App() {
                       </span></>
                     )}
                   </span>
+                </div>
+                <div className="loaded__meta">
+                  <span><span className="loaded__k">Lap dev fields: </span>{activity.lapDevFields.length > 0 ? activity.lapDevFields.join(', ') : 'none'}</span>
                 </div>
 
                 {activityMetrics && (

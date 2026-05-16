@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-**ButterLaps** — a client-only browser app for editing lap boundaries inside Garmin `.fit` activity files without modifying any other activity data. Users upload a FIT file, visually edit lap markers on an interactive chart, and export a corrected FIT that stays compatible with Garmin/Strava/Stryd/HealthFit.
+**ButterLaps** — a client-only browser app for editing lap boundaries inside `.fit` activity files without modifying any other activity data. Users upload a .fit file, visually edit lap markers on an interactive chart, and export a corrected .fit that stays compatible with Garmin/Strava/Stryd/HealthFit.
 
 No backend. No accounts. No AI suggestions. Precision editing tool only.
 
@@ -59,6 +59,7 @@ Duration and distance prefer session-level FIT fields and fall back to record-le
 ## Workflow rules
 
 - **Commit before changing**: before making any code changes in response to a prompt, run `git status` and if there are uncommitted changes, commit them first. This ensures every prompt starts from a clean rollback point.
+- **Flag before stopping**: if a requested change would require touching >3 files, has unclear requirements, or conflicts with existing architecture, implement what's clearly scoped and add a TODO comment + one-line explanation for the ambiguous part. Only halt and ask if the task is genuinely contradictory or destructive (e.g. "delete the database").
 
 ## Engineering rules
 
@@ -71,6 +72,12 @@ Duration and distance prefer session-level FIT fields and fall back to record-le
 - No duplicated logic — extract shared code to `src/format.ts` or a utility before duplicating across components.
 - Components stay under ~250 lines; extract subcomponents or helpers when approaching the limit.
 - FIT parsing and marker-building logic must have Vitest unit tests. It is pure and deterministic — keep it covered.
+
+## Pre-release checklist
+
+Search for `// TESTING ONLY` and disable or replace each occurrence before shipping:
+- `src/App.tsx` — global drop zone (drop `.fit` anywhere on the page, not just the upload frame)
+- `src/App.tsx` — Reset button reloads the file instead of just restoring original markers
 
 ## Version auto-increment
 

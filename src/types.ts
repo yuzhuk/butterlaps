@@ -10,7 +10,10 @@ export type FitSummary = {
   hasPower: boolean;
   hasCadence: boolean;
   activityType: string;
+  subSport?: string;
   startTime: number | null;
+  device?: string;
+  deviceApp?: string;
 };
 
 export type FitActivity = {
@@ -23,5 +26,6 @@ export type FitActivity = {
     values: Array<{ timeOffsetSeconds: number; value: number | null }>;
   }>;
   unshownSeries: string[];
+  lapDevFields: string[];
   rawFitPayload: ArrayBuffer;
 };
