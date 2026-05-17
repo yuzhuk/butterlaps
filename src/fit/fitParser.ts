@@ -271,7 +271,7 @@ function getDistanceMeters(parsedFit: any, records: Array<any>): number {
 const PARSED_RECORD_FIELDS = new Set([
   'altitude', 'enhanced_altitude',
   'heart_rate',
-  'distance',
+  'distance', 'Distance',  // 'Distance' is Stryd developer field variant
   'speed', 'enhanced_speed',
   'power', 'Power',  // 'Power' is Garmin native Running Power developer field
   'cadence',
