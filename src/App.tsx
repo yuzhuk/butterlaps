@@ -36,6 +36,8 @@ const SERIES_SHORT: Record<string, string> = {
   Speed: 'Spd',
 };
 
+const METRICS_ORDER = ['Distance', 'Pace', 'Speed', 'Power', 'Heart Rate', 'Cadence', 'Elevation'];
+
 // ---- Theme ----
 
 type ThemeSetting = 'light' | 'dark' | 'system';
@@ -444,7 +446,7 @@ function App() {
                   <span className="loaded__sep">·</span>
                   <span>
                     <span className="loaded__k">Metrics: </span>
-                    {activity.series.map((s) => SERIES_SHORT[s.name] ?? s.name).join(' · ')}
+                    {[...activity.series].sort((a, b) => METRICS_ORDER.indexOf(a.name) - METRICS_ORDER.indexOf(b.name)).map((s) => SERIES_SHORT[s.name] ?? s.name).join(' · ')}
                     {activity.unshownSeries.length > 0 && (
                       <> · <span className="unshown-pill">
                         +{activity.unshownSeries.length} not shown

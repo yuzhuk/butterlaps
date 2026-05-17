@@ -265,20 +265,6 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
   return (
     <div>
       <div className="chips">
-        {elevationSeries && (
-          <button
-            type="button"
-            className={`series-chip${activeSeries.has('Elevation') ? ' is-on' : ''}`}
-            style={activeSeries.has('Elevation') ? { color: '#7a6448', borderColor: '#7a6448' } : undefined}
-            onClick={() => toggleSeries('Elevation')}
-          >
-            <span
-              className="series-chip__led"
-              style={activeSeries.has('Elevation') ? { background: '#7a6448', boxShadow: '0 0 5px #7a6448' } : undefined}
-            />
-            Elev
-          </button>
-        )}
         {availablePrimary.map((name) => {
           const color = SERIES_COLORS[name];
           const on = activeSeries.has(name);
@@ -298,6 +284,20 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             </button>
           );
         })}
+        {elevationSeries && (
+          <button
+            type="button"
+            className={`series-chip${activeSeries.has('Elevation') ? ' is-on' : ''}`}
+            style={activeSeries.has('Elevation') ? { color: '#7a6448', borderColor: '#7a6448' } : undefined}
+            onClick={() => toggleSeries('Elevation')}
+          >
+            <span
+              className="series-chip__led"
+              style={activeSeries.has('Elevation') ? { background: '#7a6448', boxShadow: '0 0 5px #7a6448' } : undefined}
+            />
+            Elev
+          </button>
+        )}
         <div className="lap-mode-widget">
           <span className="lap-mode-label">TIME · DIST</span>
           <div className="lap-mode-toggle">
