@@ -89,17 +89,31 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, r
   return [...seen.values()].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
 }
 
-// Inserts a null sentinel after any point whose successor is more than this many
-// seconds away, so Recharts breaks the line instead of drawing a diagonal.
-const GAP_BREAK_SECONDS = 5;
+// Per-series gap thresholds (seconds). Gaps within the threshold are bridged
+// with a straight interpolated line; larger gaps get a null sentinel so
+// Recharts breaks the line (real pauses / extended signal loss exceed 30 s).
+//
+// Elevation changes slowly → generous threshold; power/pace can spike and
+// drop → tighter threshold to avoid misleading straight-line bridges.
+const GAP_BREAK_SECONDS: Record<string, number> = {
+  Elevation:    60,  // GPS altitude drifts slowly; long bridge still accurate
+  'Heart Rate': 30,  // HR changes gradually
+  Cadence:      30,  // same cadence behaviour as HR
+  Power:        15,  // power varies rapidly; limit interpolation artefacts
+  Pace:         15,  // pace/speed has the same concern as power
+  Speed:        15,
+};
+const GAP_BREAK_DEFAULT = 30;
 
 function withGapBreaks(
   series: Array<{ timeOffsetSeconds: number; value: number | null }>,
+  seriesName: string,
 ): Array<{ timeOffsetSeconds: number; value: number | null }> {
+  const threshold = GAP_BREAK_SECONDS[seriesName] ?? GAP_BREAK_DEFAULT;
   const result: Array<{ timeOffsetSeconds: number; value: number | null }> = [];
   for (let i = 0; i < series.length; i++) {
     result.push(series[i]);
-    if (i + 1 < series.length && series[i + 1].timeOffsetSeconds - series[i].timeOffsetSeconds > GAP_BREAK_SECONDS) {
+    if (i + 1 < series.length && series[i + 1].timeOffsetSeconds - series[i].timeOffsetSeconds > threshold) {
       result.push({ timeOffsetSeconds: series[i].timeOffsetSeconds + 1, value: null });
     }
   }
@@ -155,22 +169,22 @@ function buildSeries(parsedRecords: Array<any>, baselineMs: number, activityType
 
   const series = [];
   if (elevation.length > 0) {
-    series.push({ name: 'Elevation', values: withGapBreaks(elevation) });
+    series.push({ name: 'Elevation', values: withGapBreaks(elevation, 'Elevation') });
   }
   if (heartRate.length > 0) {
-    series.push({ name: 'Heart Rate', values: withGapBreaks(heartRate) });
+    series.push({ name: 'Heart Rate', values: withGapBreaks(heartRate, 'Heart Rate') });
   }
   if (distance.length > 0) {
     series.push({ name: 'Distance', values: distance });
   }
   if (power.length > 0) {
-    series.push({ name: 'Power', values: withGapBreaks(power) });
+    series.push({ name: 'Power', values: withGapBreaks(power, 'Power') });
   }
   if (cadence.length > 0) {
-    series.push({ name: 'Cadence', values: withGapBreaks(cadence) });
+    series.push({ name: 'Cadence', values: withGapBreaks(cadence, 'Cadence') });
   }
   if (speedOrPace.length > 0) {
-    series.push({ name: speedOrPaceName, values: withGapBreaks(speedOrPace) });
+    series.push({ name: speedOrPaceName, values: withGapBreaks(speedOrPace, speedOrPaceName) });
   }
 
   return series;
