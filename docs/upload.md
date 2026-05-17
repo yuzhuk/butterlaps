@@ -17,5 +17,7 @@
 - file size
 - data point count (number of FIT records parsed)
 - `Recorded:` date/time (first record timestamp, omitted if absent)
-- `Metrics:` list of parsed chart series in short form (e.g. `Elev · HR · Pace`); additional non-charted fields shown as `· +N` with a tooltip listing them
+- device name (e.g. `Garmin Fenix 7`), sub-sport (e.g. `trail_running`), recording app (if present)
+- `Metrics:` list of parsed chart series in display order (`Dist · Pace · Power · HR · Cad · Elev`); additional non-charted fields shown as `· +N` with a tooltip listing them
+- lap developer fields (if any) listed below metrics
 - unsaved-changes confirmation: browser shows a native dialog if user tries to close or refresh the tab before exporting

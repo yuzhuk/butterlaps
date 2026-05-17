@@ -50,11 +50,13 @@ test-artifacts/             — Playwright screenshots and test scripts (gitigno
 
 ### fitParser.ts flow
 
-`parseFitFile(File)` → reads `ArrayBuffer` → runs `fit-file-parser` in `mode: 'both'` → normalises records from top-level or per-lap arrays → derives a `baselineMs` anchor (first record timestamp or first lap start_time) → builds `markers` (Start + one per lap + Finish, deduped, sorted) → builds `series` (Elevation, Heart Rate, Distance, Power, Cadence, Pace — only those present in data).
+`parseFitFile(File)` → reads `ArrayBuffer` → runs `fit-file-parser` in `mode: 'both'` → normalises records from top-level or per-lap arrays → derives a `baselineMs` anchor (first record timestamp or first lap start_time) → builds `markers` (Start + one per lap + Finish, deduped, sorted) → builds `series` (Elevation, Heart Rate, Distance, Power, Cadence, Pace/Speed — only those present in data) → applies `withGapBreaks(series, seriesName)` with per-series thresholds to insert null sentinels for large gaps.
 
-Pace is computed as `1000 / speed` (seconds per km from m/s).
+Pace is computed as `1000 / speed` (seconds per km from m/s). Speed series is used when pace is absent or not meaningful (cycling).
 
 Duration and distance prefer session-level FIT fields and fall back to record-level values.
+
+Distance is parsed for cursor tooltip math but is not a plotted chart series. The Stryd developer field variant (`'Distance'`, capital D) is parsed alongside the native FIT `'distance'` field.
 
 ## Workflow rules
 

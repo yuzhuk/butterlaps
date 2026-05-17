@@ -24,12 +24,17 @@ type Marker = {
 
 Extract at minimum:
 - timestamps and elapsed time
-- distance
+- distance (cursor tooltip only — not plotted as a chart series)
 - pace — computed as `1000 / speed` (s/km from m/s records)
+- speed — used when pace is absent
 - heart rate, power, cadence, elevation
+- device name, sub-sport, device app
 - existing lap markers → `Marker[]`
+- developer field names present on lap messages (`lapDevFields`)
 
 The raw `ArrayBuffer` is preserved verbatim on `FitActivity.rawFitPayload` for use by the export layer.
+
+Short recording gaps (Garmin smart recording) are bridged by straight-line interpolation per series. `withGapBreaks(series, seriesName)` inserts null sentinels beyond per-series thresholds (15–60 s depending on series). See `docs/chart.md` for the full threshold table.
 
 ---
 

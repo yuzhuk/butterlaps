@@ -28,7 +28,7 @@ Total / Avg row — pace is derived from total distance ÷ total time, not a sim
 - updates live as laps are merged
 - clicking a data row zooms the chart to that lap
 - clicking the footer row resets zoom
-- zebra striping on alternating rows
+- rows are tinted green (active) or red (recovery) based on whether the lap's average power is above or below the session average power; no tint when power data is absent
 
 ## Hint
 

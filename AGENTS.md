@@ -34,7 +34,7 @@ This repository is a small React + TypeScript browser app for editing lap bounda
 - `src/App.tsx` — application composition and top-level UI state.
 - `src/styles.css` — all styling (CSS custom properties for light/dark theming).
 - `src/components/ChartPanel.tsx` — chart, series toggles, zoom wiring.
-- `src/components/ChartZoomOverlay.tsx` — SVG overlay for zoom, markers, hover, drag.
+- `src/components/ChartZoomOverlay.tsx` — SVG overlay for zoom, markers, hover, drag; contains `TooltipBox`, `labelsAt`, and `lapOffsetAt` helpers shared by hover and drag tooltips.
 
 ## Useful documentation
 

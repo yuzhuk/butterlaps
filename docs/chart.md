@@ -12,6 +12,26 @@ Narrow: chart stacked above lap details.
 - elapsed time formatted as `mm:ss` or `h:mm:ss`
 - first tick anchored at the left edge of the visible range, last tick at the right edge
 - nice round intervals between them (5 s, 10 s, 30 s, 1 min, 5 min, etc.)
+- when zoomed, ticks in the veil zones (between the visible outer edge and the zoom boundary) are suppressed — only the boundary ticks and ticks within the zoom range are shown
+- all tick labels are 9 px
+
+---
+
+## Gap Interpolation
+
+Short recording gaps are bridged by drawing a straight interpolated line rather than breaking the chart. Gaps beyond the per-series threshold insert a null sentinel (Recharts breaks the line).
+
+| Series     | Bridge up to |
+|------------|-------------|
+| Elevation  | 60 s        |
+| Heart Rate | 30 s        |
+| Cadence    | 30 s        |
+| Power      | 15 s        |
+| Pace       | 15 s        |
+| Speed      | 15 s        |
+| (default)  | 30 s        |
+
+Garmin smart recording typically skips 4–8 s when values are stable; these small gaps are always bridged. Real pauses and auto-pause stops exceed 30 s and still break the line.
 
 ---
 
@@ -20,6 +40,7 @@ Narrow: chart stacked above lap details.
 ### Elevation (background)
 - subtle filled area in warm gray
 - toggleable — default ON if data is present
+- chip appears last in the series chip row (after all primary series chips)
 
 ### Primary series
 Toggleable, each on its own independently-scaled Y-axis. Toggle order (left to right):
@@ -27,9 +48,12 @@ Toggleable, each on its own independently-scaled Y-axis. Toggle order (left to r
 | Series     | Default | Color  |
 |------------|---------|--------|
 | Pace       | ON      | indigo |
+| Speed      | OFF     | indigo |
 | Power      | OFF     | amber  |
 | Heart Rate | OFF     | red    |
 | Cadence    | OFF     | green  |
+
+Pace and Speed are mutually exclusive — only one appears depending on whether the file contains pace or speed data.
 
 #### Y-axis domain rules (per series)
 
@@ -66,7 +90,8 @@ A compact pill toggle sits at the right end of the series chip row, below a `TIM
 - chart SVG is inert to pointer events; a transparent overlay handles all input
 - hovering shows sliding active dots on each visible series
 - cursor snap-pull: hover position slides smoothly toward the nearest recorded data point within 30 px
-- hovering shows a tooltip box with time · distance in the header and active series values below; box auto-sizes to content and anchors left of cursor, flipping to avoid the right edge
+- hovering shows a tooltip box with time · distance in the header and active series values below; box auto-sizes to content and anchors right of cursor, sliding left only when near the right edge
+- dragging a lap marker shows the same tooltip box anchored to the marker position with identical layout and LAP-mode support
 - no focus rings on SVG elements
 
 ---
