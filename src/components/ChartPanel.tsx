@@ -163,8 +163,9 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
     return function XTick({ x, y, payload }: { x: string | number; y: string | number; payload: { value: number } }) {
       const v = payload.value;
       const anchor = leftAnchors.has(v) ? 'start' : rightAnchors.has(v) ? 'end' : 'middle';
+      const isEdge = anchor !== 'middle';
       return (
-        <text x={x} y={y} dy={10} textAnchor={anchor} fontSize={10} fill="#969389" fontFamily="JetBrains Mono, monospace">
+        <text x={x} y={y} dy={10} textAnchor={anchor} fontSize={isEdge ? 9 : 10} fill="#969389" fontFamily="JetBrains Mono, monospace">
           {formatXTick(v)}
         </text>
       );
@@ -330,6 +331,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
               allowDataOverflow
               height={XAXIS_HEIGHT}
               ticks={ticks}
+              interval={0}
               tick={xTick}
               axisLine={{ stroke: '#e0ddd3' }}
               tickLine={{ stroke: '#e0ddd3' }}
