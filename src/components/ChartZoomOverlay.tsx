@@ -269,6 +269,10 @@ export function ChartZoomOverlay({
     const handleMove = (e: MouseEvent) => {
       lastClientPosRef.current = { x: e.clientX, y: e.clientY };
       const plotX = getPlotX(e.clientX);
+      const rawPlotX = (() => {
+        const rect = svgRef.current?.getBoundingClientRect();
+        return rect ? e.clientX - rect.left - marginLeftRef.current : plotX;
+      })();
 
       // Zoom drag
       const d = dragRef.current;
@@ -311,7 +315,7 @@ export function ChartZoomOverlay({
           ...md,
           currentPx: clampedPx,
           currentDisplayPx,
-          hasMoved: md.hasMoved || Math.abs(clampedPx - md.originalPx) >= DRAG_THRESHOLD_PX,
+          hasMoved: md.hasMoved || Math.abs(rawPlotX - md.originalPx) >= DRAG_THRESHOLD_PX,
           mergeTarget,
         };
         markerDragRef.current = updated;
