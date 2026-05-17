@@ -154,7 +154,12 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
         result.splice(i === -1 ? result.length : i, 0, t);
       }
     }
-    return result;
+    // Strip ticks that fall inside the veil zones (between outer edge and zoom boundary)
+    return result.filter((t) =>
+      t === displayDomain[0] ||
+      t === displayDomain[1] ||
+      (t >= zoom.start && t <= zoom.end),
+    );
   }, [displayDomain, zoom]);
 
   const xTick = useMemo(() => {
