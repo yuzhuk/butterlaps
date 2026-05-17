@@ -163,9 +163,8 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
     return function XTick({ x, y, payload }: { x: string | number; y: string | number; payload: { value: number } }) {
       const v = payload.value;
       const anchor = leftAnchors.has(v) ? 'start' : rightAnchors.has(v) ? 'end' : 'middle';
-      const isEdge = anchor !== 'middle';
       return (
-        <text x={x} y={y} dy={10} textAnchor={anchor} fontSize={isEdge ? 9 : 10} fill="#969389" fontFamily="JetBrains Mono, monospace">
+        <text x={x} y={y} dy={10} textAnchor={anchor} fontSize={9} fill="#969389" fontFamily="JetBrains Mono, monospace">
           {formatXTick(v)}
         </text>
       );
