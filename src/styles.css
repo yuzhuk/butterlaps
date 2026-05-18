@@ -290,7 +290,7 @@ button {
 
 .upload-btn {
   font-family: "Manrope", sans-serif;
-  font-weight: 600;
+  font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.08em;
   color: #fff;
@@ -1035,7 +1035,7 @@ button {
 
 .export-btn {
   font-family: "Manrope", sans-serif;
-  font-weight: 600;
+  font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.08em;
   background: var(--amber);
