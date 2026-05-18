@@ -116,7 +116,7 @@ A compact pill toggle sits at the right end of the series chip row, below a `TIM
 - hovering shows sliding active dots on each visible series
 - cursor snap-pull: hover position slides smoothly toward the nearest recorded data point within 30 px
 - hovering shows a tooltip box with time · distance in the header and active series values below; box auto-sizes to content and anchors right of cursor, sliding left only when near the right edge
-- dragging a lap marker shows the same tooltip box anchored to the marker position with identical layout and LAP-mode support
+- dragging a lap marker shows the same tooltip box anchored to the marker position with identical layout and LAP-mode support; in LAP mode the interval is measured from the preceding marker (not the dragged marker's original position)
 - no focus rings on SVG elements
 
 ---

@@ -13,8 +13,8 @@ type Marker = {
 
 `buildMarkers()` always produces:
 - a `Start` marker at t = 0
-- one `Lap N` marker per FIT lap (Lap 1 is also at t = 0 — phantom duplicate that produces a zero-duration interval filtered out everywhere)
-- a `Finish` marker at the last record timestamp
+- one `Lap N` marker per FIT lap whose `start_time` is before `durationSeconds` (Lap 1 is also at t = 0 — phantom duplicate that produces a zero-duration interval filtered out everywhere); session_end laps (start_time ≥ durationSeconds) are skipped
+- a `Finish` marker at `durationSeconds`
 
 `getLapIntervals(markers)` derives lap intervals by filtering out zero-duration adjacent pairs.
 

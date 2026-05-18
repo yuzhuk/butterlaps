@@ -13,6 +13,10 @@ For each surviving lap message:
 
 Deleted lap messages (DEF + DATA byte pairs) are removed from the byte stream. File CRC and header CRC are recomputed.
 
+### Session_end laps
+
+Garmin devices write a final lap (FIT `lap_trigger = session_end`) that starts *after* `total_timer_time` — the user pressed STOP but the device kept recording until they pressed SAVE. This lap is not shown in the editor and is dropped cleanly during export: the slot-assignment writer assigns it zero new intervals, so no data message is emitted for it. The post-stop records themselves pass through unchanged in the raw payload.
+
 ### Per-lap definition re-emission
 
 Stryd and Apple Watch FIT files emit a fresh definition message before each lap data message (valid FIT, common pattern). The writer preserves this structure: a template definition block is written at every original LAP definition position. This maintains the local-type ownership chain — without it, intervening RECORD definition messages would reclaim the local type slot and consumers would misread lap data as records.

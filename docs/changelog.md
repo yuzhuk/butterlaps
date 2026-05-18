@@ -2,6 +2,18 @@
 
 All notable changes to ButterLaps are documented here.
 
+## [0.1.1.33] — 2026-05-18
+
+### Fixed
+- Session_end laps (Garmin post-stop recording) no longer appear as user-visible markers; round-trip lap count is now exact for FR955, FR935, and any file with extended post-finish recording
+- Drag tooltip in LAP mode now shows totals from the previous marker, not from the dragged marker's original position
+- Load and Export buttons now have identical typography (font-weight 800, 12 px, matching padding)
+
+### Changed
+- Record trim boundary switched from `durationSeconds + 30 s` heuristic to `total_elapsed_time` (the FIT session field that marks the exact wall-clock end). Post-stop cooldown data now appears in chart series. Files without `total_elapsed_time` fall back to the previous `+30 s` rule.
+
+---
+
 ## [0.1.1.31] — 2026-05-18
 
 ### Added
