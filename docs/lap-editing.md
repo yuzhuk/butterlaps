@@ -38,3 +38,13 @@ Drag a split close to an adjacent split to delete it.
 
 - cursor snap-pull applies during both marker drag and zoom drag: the position slides smoothly toward the nearest recorded data point within 30 px (quadratic ease)
 - on marker release, the marker commits to the nearest data point and the cursor immediately reflects the correct snapped position
+
+---
+
+## Undo
+
+Every edit — add via double-click, drag to reposition, drag to delete, merge via table button — saves the previous marker state before applying the change. The **Undo** button in the lap table header restores that snapshot.
+
+- only the most recent change is stored (one level deep)
+- the button is disabled (dimmed, no hover) when there is nothing to undo
+- loading a new file clears the stored snapshot

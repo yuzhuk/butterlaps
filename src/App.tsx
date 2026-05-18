@@ -121,6 +121,7 @@ function App() {
   const [file, setFile] = useState<File | null>(null);
   const [activity, setActivity] = useState<FitActivity | null>(null);
   const [markers, setMarkers] = useState<Marker[]>([]);
+  const [previousMarkers, setPreviousMarkers] = useState<Marker[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
@@ -220,6 +221,7 @@ function App() {
       setFile(selectedFile);
       setActivity(parsedActivity);
       setMarkers(parsedActivity.markers);
+      setPreviousMarkers(null);
       setZoom(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
@@ -247,8 +249,10 @@ function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const saveUndo = (current: Marker[]) => setPreviousMarkers(current);
+
   const removeLap = (markerIndex: number) => {
-    setMarkers((prev) => prev.filter((_, i) => i !== markerIndex));
+    setMarkers((prev) => { saveUndo(prev); return prev.filter((_, i) => i !== markerIndex); });
   };
 
   const addMarker = (timeOffsetSeconds: number) => {
@@ -256,6 +260,7 @@ function App() {
     const snapped = snapToNearestTimestamp(timeOffsetSeconds, activity.recordTimestamps);
     setMarkers((prev) => {
       if (prev.some((m) => m.timeOffsetSeconds === snapped)) return prev;
+      saveUndo(prev);
       return [...prev, { timeOffsetSeconds: snapped, label: 'Lap' }].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
     });
   };
@@ -265,13 +270,21 @@ function App() {
     const snapped = snapToNearestTimestamp(newTime, activity.recordTimestamps);
     setMarkers((prev) => {
       if (prev.some((m) => m.timeOffsetSeconds === snapped && m.timeOffsetSeconds !== originalTime)) return prev;
+      saveUndo(prev);
       return prev.map((m) => m.timeOffsetSeconds === originalTime ? { ...m, timeOffsetSeconds: snapped } : m)
         .sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds);
     });
   };
 
   const mergeMarker = (draggedTime: number) => {
-    setMarkers((prev) => prev.filter((m) => m.timeOffsetSeconds !== draggedTime));
+    setMarkers((prev) => { saveUndo(prev); return prev.filter((m) => m.timeOffsetSeconds !== draggedTime); });
+  };
+
+  const handleUndo = () => {
+    if (previousMarkers) {
+      setMarkers(previousMarkers);
+      setPreviousMarkers(null);
+    }
   };
 
   // TESTING ONLY — reloads file instead of just resetting markers; revert before release
@@ -555,6 +568,8 @@ function App() {
                   onSelectLap={(start, end) => setZoom({ start, end })}
                   onClearZoom={() => setZoom(null)}
                   onReset={resetMarkers}
+                  onUndo={handleUndo}
+                  canUndo={previousMarkers !== null}
                   onHoverLap={setHoveredLapInterval}
                 />
               </div>

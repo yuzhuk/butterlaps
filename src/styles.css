@@ -716,11 +716,38 @@ button {
   text-transform: uppercase;
 }
 
+.table-head__actions {
+  display: flex;
+  gap: 6px;
+}
+
 .table-head__count {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
+}
+
+.btn-secondary {
+  font-family: "Manrope", sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .btn-danger {

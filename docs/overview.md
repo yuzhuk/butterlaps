@@ -57,6 +57,7 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 - editable export filename
 - light / dark / system theme with persistence
 - beforeunload confirmation when there are unsaved changes
+- single-level undo (restores the state before the last edit)
 
 ### Out of Scope (v0.1)
 
@@ -68,7 +69,7 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 - trimming or merging activities
 - GPX/TCX support
 - mobile app
-- undo/redo (v0.2+)
+- multi-level undo / redo (v0.2+)
 - adding new laps from scratch (v0.2+)
 
 ---

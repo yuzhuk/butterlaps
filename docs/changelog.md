@@ -2,6 +2,13 @@
 
 All notable changes to ButterLaps are documented here.
 
+## [0.1.1.34] — 2026-05-18
+
+### Added
+- Single-level undo: every lap edit (add, move, merge via chart or table) saves the previous marker state; the **Undo** button in the lap table header restores it. Only the most recent change is stored — loading a new file or reloading clears the history.
+
+---
+
 ## [0.1.1.33] — 2026-05-18
 
 ### Fixed

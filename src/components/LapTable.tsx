@@ -149,10 +149,12 @@ interface Props {
   onSelectLap: (start: number, end: number) => void;
   onClearZoom: () => void;
   onReset: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
   onHoverLap: (interval: { start: number; end: number } | null) => void;
 }
 
-export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZoom, onReset, onHoverLap }: Props) {
+export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZoom, onReset, onUndo, canUndo, onHoverLap }: Props) {
   const lapRows = buildLapRows(activity, markers);
   const summaryRow = getSummaryRow(activity, markers);
   const tableSeries = getTableSeries(activity);
@@ -174,7 +176,10 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
           <h2>Laps</h2>
           <span className="table-head__count">{lapRows.length}</span>
         </div>
-        <button type="button" className="btn-danger" onClick={onReset}>Reset</button>
+        <div className="table-head__actions">
+          <button type="button" className="btn-secondary" onClick={onUndo} disabled={!canUndo}>Undo</button>
+          <button type="button" className="btn-danger" onClick={onReset}>Reset</button>
+        </div>
       </div>
       <div className="table-scroll">
         <table className="lap-table">

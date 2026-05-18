@@ -31,6 +31,19 @@ Total / Avg row — pace is derived from total distance ÷ total time, not a sim
 - clicking the footer row resets zoom
 - rows are tinted green (active) or red (recovery) based on whether the lap's average power is above or below the session average power; no tint when power data is absent
 
+## Header Controls
+
+The table header shows the lap count and two buttons grouped on the right via `.table-head__actions` (flex, 6 px gap).
+
+| Button | Style intent | Enabled when |
+|--------|-------------|--------------|
+| Undo   | Neutral — `var(--ink-soft)` text, `var(--border)` border. Deliberately low visual weight so it doesn't compete with Reset. Disabled state: 0.35 opacity, default cursor, no hover effect. | A change has been made since load |
+| Reset  | Alarming — brick-red (`var(--brick)`) border and text; fills solid on hover. | Always (file is loaded) |
+
+The visual hierarchy is intentional: Undo is a safe, reversible action and should not look dangerous; Reset reloads from disk and is styled to signal consequence.
+
+Only one level of undo is stored — the snapshot is taken immediately before each edit (add, move, merge). Loading a new file clears the snapshot.
+
 ## Hint
 
 A single hint line is displayed below the table: `hover to highlight in chart · click to zoom in chart`
