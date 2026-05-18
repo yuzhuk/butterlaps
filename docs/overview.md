@@ -73,6 +73,21 @@ Primary target: desktop/laptop browsers. Responsive layout is required; mobile-f
 
 ---
 
+## Page Structure
+
+After upload the entire workspace lives inside a single card. Four numbered sections guide the user:
+
+| Step | Label | Content |
+|------|-------|---------|
+| 01 | Upload | file picker, drag-and-drop, file metadata after load |
+| 02 | Edit | interactive chart (left) + lap table (right); both are part of the same step |
+| 03 | Review | change summary — delta badges, lap count arrow, added/removed boundary timestamps |
+| 04 | Download | export button + editable filename |
+
+The lap table has no section head of its own; it is visually bundled under the "02 Edit" header which spans both columns. In wide mode the lap table can grow to any height alongside the Review and Download sections without displacing them.
+
+---
+
 ## Supported Activities
 
 - running

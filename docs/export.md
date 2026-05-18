@@ -33,24 +33,25 @@ The number increments without limit.
 
 ---
 
-## Change Summary Panel
+## Change Summary Panel (03 Review)
 
-Shown in the summary section below the lap table.
+Shown in the **03 Review** section (left column, below the chart in wide mode; below the lap table in narrow mode).
 
 **No changes:**
 ```
-No changes
-8 laps
+No changes — lap boundaries match the original file
 ```
 
-**After merges:**
-```
-2 lap boundaries removed
-8 laps → 6 laps
-24:00, 48:00          ← timestamps of removed boundaries, dimmed
-```
+**With changes** (at least one merge or addition):
 
-## Export Button
+- Delta badges: `−N` (red, boundaries removed) and/or `+N` (green, boundaries added)
+- Lap count arrow: `8 → 6 laps`
+- "Removed @" line: timestamps of deleted boundaries (wraps if many)
+- "Added @" line: timestamps of added boundaries, sorted ascending (wraps if many)
 
-- **Disabled** — label "No changes to export" — when no laps have been merged
-- **Enabled** — label "Export edited FIT file" — once at least one lap is merged
+## Export Button (04 Download)
+
+Shown in the **04 Download** section.
+
+- **Disabled** — label "Export edited .fit" — when no changes have been made
+- **Enabled** — label "Export edited .fit" — once markers differ from the original; editable filename field appears below the button

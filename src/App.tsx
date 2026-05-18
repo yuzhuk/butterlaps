@@ -322,6 +322,7 @@ function App() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasChanges]);
 
+
   const activityMetrics = activity ? (() => {
     const dist = activity.summary.distanceMeters;
     const dur = activity.summary.durationSeconds;
@@ -533,13 +534,31 @@ function App() {
             )}
           </div>
 
-          {/* Workspace: 02 chart (left) / laps (right, bleeds into 03+04) / 03 review / 04 download */}
+          {/* Workspace: float layout — laps floats right so it can cut through review/download
+              when tall; workspace is display:flow-root so it always contains the float */}
           {activity && (
             <div className="workspace">
 
-              {/* Left col row 1 — 02 Edit */}
-              <div className="workspace__chart-area">
+              {/* Full-width 02 Edit header — placed before float so it spans both columns */}
+              <div className="workspace__edit-head">
                 <SectionHead num="02" label="Edit" />
+              </div>
+
+              {/* Right column — floated right; placed before chart in DOM so it occupies the
+                  right side starting at the same vertical position as the chart */}
+              <div className="workspace__laps">
+                <LapTable
+                  activity={activity}
+                  markers={markers}
+                  onMergeLap={removeLap}
+                  onSelectLap={(start, end) => setZoom({ start, end })}
+                  onClearZoom={() => setZoom(null)}
+                  onReset={resetMarkers}
+                />
+              </div>
+
+              {/* Left column — margin-right reserves space for the float */}
+              <div className="workspace__chart-area">
                 <ChartPanel
                   activity={activity}
                   markers={markers}
@@ -552,22 +571,13 @@ function App() {
                 />
               </div>
 
-              {/* Right col — laps (spans rows 1–3 in wide mode) */}
-              <div className="workspace__laps">
-                <SectionHead num="03" label="Laps" />
-                <LapTable
-                  activity={activity}
-                  markers={markers}
-                  onMergeLap={removeLap}
-                  onSelectLap={(start, end) => setZoom({ start, end })}
-                  onClearZoom={() => setZoom(null)}
-                  onReset={resetMarkers}
-                />
+              {/* Row 3 — 03 Review header spans both columns */}
+              <div className="workspace__review-head">
+                <SectionHead num="03" label="Review" />
               </div>
 
-              {/* Left col row 2 — 04 Review */}
-              <div className="workspace__review">
-                <SectionHead num="04" label="Review" />
+              {/* Row 4 left col — review content (col 1 only, never covered by laps) */}
+              <div className="workspace__review-body">
                 {hasChanges ? (
                   <div className="review">
                     <div className="review__delta">
@@ -624,9 +634,13 @@ function App() {
                 )}
               </div>
 
-              {/* Left col row 3 — 05 Download */}
-              <div className="workspace__download">
-                <SectionHead num="05" label="Download" />
+              {/* Row 5 — 04 Download header spans both columns */}
+              <div className="workspace__download-head">
+                <SectionHead num="04" label="Download" />
+              </div>
+
+              {/* Row 6 left col — download content (col 1 only, never covered by laps) */}
+              <div className="workspace__download-body">
                 <div className="download">
                   <button
                     type="button"

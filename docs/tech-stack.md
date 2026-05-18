@@ -11,6 +11,22 @@
 - `CSS` / `styles.css` — all styling via CSS custom properties for light/dark theming.
 - No Tailwind, no CSS modules currently.
 
+## Typography
+
+Three typefaces loaded from Google Fonts:
+
+| Role | Family | Weights |
+|------|--------|---------|
+| UI sans-serif | Manrope | 400 500 600 700 800 |
+| Monospace / numeric | JetBrains Mono | 400 500 600 700 |
+| Serif accent | Newsreader | italic 400 500 (optical size 6–72) |
+
+**Manrope** is used for all UI text — headings, labels, buttons, section heads, delta counts. Bold elements (section number badges, delta +/− figures, the export button) use weight 800. Letter-spacing on uppercase Manrope labels is kept tight (0.06–0.10 em) to avoid the over-spaced look common with geometric sans-serifs.
+
+**JetBrains Mono** is used for all numeric/data output — timestamps, pace, lap times in the review section, tooltip values, table data cells, series chips, and inline `.fit` filename references.
+
+**Newsreader** (italic) is available as a display accent but is not currently applied to any production element.
+
 ## Charting and Interaction
 
 - `Recharts` — interactive line/area chart, custom series rendering.

@@ -2,8 +2,33 @@
 
 ## Layout
 
-Wide (≥ 960 px): chart (3fr) side-by-side with lap details (2fr).  
-Narrow: chart stacked above lap details.
+The post-upload workspace has four numbered sections inside a single card:
+
+| # | Section | Wide position |
+|---|---------|--------------|
+| 01 | Upload | full width (always visible above workspace) |
+| 02 | Edit | header spans both columns; chart in left col, lap table in right col |
+| 03 | Review | header spans full width; content in left col only |
+| 04 | Download | header spans full width; content in left col only |
+
+### Wide mode (≥ 960 px)
+
+Two columns: left `≈ 57%` (chart, review body, download body), right `≈ 43%` (lap table, no own section header).
+
+- The **"02 Edit"** section head spans both columns — chart and lap table are visually one step.
+- The lap table lives in the right column with no header of its own.
+- **"03 Review"** and **"04 Download"** section heads span the full card width; their content is confined to the left column and is never obscured by the lap table.
+- **Tall-table cut-through**: when the lap table grows taller than the chart, it continues downward alongside the Review and Download rows. Those sections remain fully readable in the left column. The lap table's left border visually terminates the rule lines of the 03/04 section heads.
+- **Short table**: when the lap table is shorter than the combined left-column content, Review and Download fill the full card width below.
+
+### Narrow mode (≤ 960 px)
+
+Single column, stacked top-to-bottom:
+1. 02 Edit header
+2. Chart
+3. Lap table (no section head, border-left removed)
+4. 03 Review header + body
+5. 04 Download header + body
 
 ---
 

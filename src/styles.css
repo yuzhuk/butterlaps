@@ -86,10 +86,10 @@ button {
 }
 
 .status-bar__brand {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
   font-size: 12px;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.10em;
   color: var(--amber);
   display: inline-flex;
   align-items: center;
@@ -157,7 +157,7 @@ button {
 }
 
 .head-title {
-  font-family: "Space Grotesk", "Helvetica Neue", sans-serif;
+  font-family: "Manrope", "Helvetica Neue", sans-serif;
   font-weight: 600;
   font-size: 44px;
   line-height: 1.04;
@@ -176,7 +176,7 @@ button {
 }
 
 .head-lede {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-size: 15px;
   line-height: 1.55;
   color: var(--ink-soft);
@@ -212,8 +212,8 @@ button {
 }
 
 .section-head__num {
-  font-family: "Space Grotesk", sans-serif;
-  font-weight: 700;
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
   font-size: 11px;
   color: #fff;
   background: var(--amber);
@@ -226,10 +226,10 @@ button {
 }
 
 .section-head__label {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
   font-size: 11.5px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--ink);
 }
@@ -289,10 +289,10 @@ button {
 }
 
 .upload-btn {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
   font-size: 12px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   color: #fff;
   background: var(--amber);
   border: 1px solid var(--amber);
@@ -382,7 +382,7 @@ button {
 
 .loaded__k {
   font-size: 9.5px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -411,7 +411,7 @@ button {
 
 .metric .m-k {
   font-size: 9.5px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -499,40 +499,56 @@ button {
   color: var(--amber);
 }
 
-/* ============== Workspace (wide: left col + right col; compact: stacked) ============== */
+/* ============== Workspace (wide: float-based; compact: stacked) ============== */
 
+/*
+ * Float layout: laps floats right so it can grow to any height alongside
+ * review/download without disturbing their sizing. display:flow-root on the
+ * workspace container means it always grows to contain the float — no JS needed.
+ *
+ * Column split: right col ≈ 43.1%  (1 / (1.32 + 1))
+ *              left col  ≈ 56.9%
+ */
 .workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  align-items: start;
+  --laps-w: 43.1%;
+  display: flow-root;   /* contains the float; equivalent to a clearfix */
 }
 
-.workspace__chart-area {
-  grid-column: 1;
-  grid-row: 1;
-  padding: 14px 24px 8px;
+/* Full-width 02 Edit header (placed before the float in DOM) */
+.workspace__edit-head {
+  padding: 14px 24px 0;
 }
 
-/* Laps column spans all three rows so it can bleed alongside review + download */
+/* Right column: floated right, starts at the same vertical level as the chart */
 .workspace__laps {
-  grid-column: 2;
-  grid-row: 1 / 4;
-  padding: 14px 24px 16px;
+  float: right;
+  width: var(--laps-w);
+  box-sizing: border-box;
+  padding: 0 24px 16px;
   border-left: 1px solid var(--hair);
 }
 
-.workspace__review {
-  grid-column: 1;
-  grid-row: 2;
-  padding: 14px 24px 16px;
+/* Left column: margin-right reserves the float's space */
+.workspace__chart-area {
+  margin-right: var(--laps-w);
+  padding: 0 24px 8px;
 }
 
-.workspace__download {
-  grid-column: 1;
-  grid-row: 3;
-  padding: 14px 24px 16px;
+/* Review + Download: display:flow-root makes each block avoid the float.
+ * When laps is short (float ended): they expand to full card width.
+ * When laps is tall (float still active): they are narrowed to the left column.
+ * In both cases their content is never obscured. */
+.workspace__review-head,
+.workspace__review-body,
+.workspace__download-head,
+.workspace__download-body {
+  display: flow-root;
 }
+
+.workspace__review-head   { padding: 14px 24px 0; }
+.workspace__review-body   { padding: 0 24px 16px; }
+.workspace__download-head { padding: 14px 24px 0; }
+.workspace__download-body { padding: 0 24px 16px; }
 
 /* ============== Series chip toggles ============== */
 
@@ -691,11 +707,11 @@ button {
 }
 
 .table-head h2 {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-weight: 600;
   font-size: 11px;
   margin: 0;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.10em;
   color: var(--ink-soft);
   text-transform: uppercase;
 }
@@ -708,9 +724,9 @@ button {
 }
 
 .btn-danger {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-size: 10.5px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   background: transparent;
   color: var(--brick);
@@ -860,7 +876,7 @@ button {
   text-align: center;
   opacity: 0;
   transition: opacity 0.15s ease;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-size: 10.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -903,6 +919,7 @@ button {
 .review__delta {
   display: inline-flex;
   align-items: baseline;
+  align-self: start;
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -914,8 +931,8 @@ button {
 }
 
 .delta {
-  font-family: "Space Grotesk", sans-serif;
-  font-weight: 700;
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
   font-size: 22px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -947,16 +964,16 @@ button {
 .delta__count .arrow { color: var(--ink-faint); }
 
 .delta__count .lbl {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-size: 10.5px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-faint);
   margin-left: 4px;
 }
 
 .review__no-changes {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Manrope", sans-serif;
   font-size: 13px;
   color: var(--ink-faint);
 }
@@ -993,6 +1010,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
   font-weight: 700;
@@ -1016,10 +1034,10 @@ button {
 }
 
 .export-btn {
-  font-family: "Space Grotesk", sans-serif;
-  font-weight: 700;
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
   font-size: 12.5px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   background: var(--amber);
   color: #fff;
   border: 1px solid var(--amber);
@@ -1058,7 +1076,7 @@ button {
 
 .filename-preview .k {
   font-size: 9.5px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   color: var(--ink-faint);
   padding: 2px 6px;
   background: var(--paper-3);
@@ -1091,32 +1109,38 @@ button {
 /* ============== Compact (≤ 960 px) ============== */
 
 @media (max-width: 960px) {
-  .workspace {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-  }
+  /* Single column: cancel float, restore normal block formatting, reorder via flex */
+  .workspace { display: flex; flex-direction: column; }
 
-  .workspace__chart-area { grid-column: 1; grid-row: 1; }
+  .workspace__edit-head   { order: 1; }
+  .workspace__chart-area  { order: 2; margin-right: 0; }
+  .workspace__laps        { order: 3; float: none; width: auto; border-left: none; }
+  .workspace__review-head { order: 4; }
+  .workspace__review-body { order: 5; }
+  .workspace__download-head { order: 6; }
+  .workspace__download-body { order: 7; }
 
-  /* Laps no longer spans — sits immediately after chart */
-  .workspace__laps {
-    grid-column: 1;
-    grid-row: 2;
-    border-left: none;
-  }
-
-  .workspace__review  { grid-column: 1; grid-row: 3; }
-  .workspace__download { grid-column: 1; grid-row: 4; }
+  .workspace__review-head,
+  .workspace__review-body,
+  .workspace__download-head,
+  .workspace__download-body { display: block; }
 
   .page { padding: 0 16px 28px; }
   .status-bar { padding: 8px 16px; gap: 14px; flex-wrap: wrap; }
   .head-title { font-size: 32px; }
   .head-lede  { font-size: 14px; }
   .section,
+  .workspace__edit-head,
   .workspace__chart-area,
   .workspace__laps,
-  .workspace__review,
-  .workspace__download { padding: 12px 16px 14px; }
+  .workspace__review-head,
+  .workspace__review-body,
+  .workspace__download-head,
+  .workspace__download-body { padding: 12px 16px 14px; }
+
+  .workspace__edit-head,
+  .workspace__review-head,
+  .workspace__download-head { padding-bottom: 0; }
 
   .upload-frame { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
   .upload-hint  { flex-basis: 100%; order: 3; font-size: 14px; }
