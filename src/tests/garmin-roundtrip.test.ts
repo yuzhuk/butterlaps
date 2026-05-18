@@ -19,13 +19,11 @@
  *      files with "developer fields in lap messages — not supported".
  *      → Tests for these files are parse-only; export is skipped.
  *
- *   B. Post-finish lap edge case (FR955, FR935):
- *      These files contain a lap whose start_time is after the declared
- *      total_timer_time (e.g. Finish@8114s → Lap26@8144s). After export the
- *      last new lap starts at exactly the Finish time; on reload that lap
- *      collides with the Finish marker in buildMarkers and one is deduped away,
- *      giving reloadedLapCount = editedLapCount − 1.
- *      → Assertion is relaxed to accept editedLapCount − 1.
+ *   B. Post-finish lap (FR955, FR935) — FIXED:
+ *      fitParser now filters out laps whose snapped start ≥ durationSeconds from
+ *      buildMarkers, and uses total_elapsed_time as the trim cutoff so post-stop
+ *      cooldown records survive. The session_end lap no longer appears as a
+ *      user-visible marker and is dropped cleanly by the slot-assignment writer.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -202,11 +200,10 @@ describe('Garmin round-trip – Forerunner 245', () => {
 
 describe('Garmin round-trip – Forerunner 955', () => {
   const f = 'garmin-forerunner955-run.fit';
-  skipIfMissing(f)('parse → add → merge → move → export → reload (post-Finish lap edge case)', async () => {
+  skipIfMissing(f)('parse → add → merge → move → export → reload', async () => {
     const r = await runRoundTrip(f);
     expect(r.exportable).toBe(true);
-    // Post-Finish lap edge case: reload may be editedLapCount − 1
-    expect(r.reloadedLapCount).toBeGreaterThanOrEqual(r.editedLapCount - 1);
+    expect(r.reloadedLapCount).toBe(r.editedLapCount);
   });
 });
 
@@ -230,10 +227,10 @@ describe('Garmin round-trip – Forerunner 970', () => {
 
 describe('Garmin round-trip – Forerunner 935', () => {
   const f = 'garmin-forerunner935-run.fit';
-  skipIfMissing(f)('parse → add → merge → move → export → reload (post-Finish lap edge case)', async () => {
+  skipIfMissing(f)('parse → add → merge → move → export → reload', async () => {
     const r = await runRoundTrip(f);
     expect(r.exportable).toBe(true);
-    expect(r.reloadedLapCount).toBeGreaterThanOrEqual(r.editedLapCount - 1);
+    expect(r.reloadedLapCount).toBe(r.editedLapCount);
   });
 });
 

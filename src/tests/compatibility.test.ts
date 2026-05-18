@@ -141,7 +141,7 @@ describe('cycling – Garmin Edge 500', () => {
   skipIfMissing(file)('parses with 9 laps and speed series', async () => {
     const a = await parse(file);
     expect(a.summary.activityType).toBe('cycling');
-    expect(a.markers.length).toBeGreaterThanOrEqual(9); // Start + laps + Finish
+    expect(a.markers.length).toBeGreaterThanOrEqual(8); // Start + laps + Finish (session_end lap excluded)
     expect(a.series.some((s) => s.name === 'Speed')).toBe(true);
     expect(a.series.some((s) => s.name === 'Pace')).toBe(false);
   });

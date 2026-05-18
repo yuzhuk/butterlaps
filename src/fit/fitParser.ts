@@ -66,6 +66,9 @@ function buildMarkers(parsedFit: any, baselineMs: number, records: Array<any>, r
         return;
       }
       const rawOffset = toOffsetSeconds(lap.start_time, baselineMs);
+      // Skip session_end laps — their start_time is after total_timer_time (the user
+      // pressed STOP). Check raw offset before snapping so we never pull them in.
+      if (durationSeconds > 0 && rawOffset >= durationSeconds) return;
       const snapped = snapToNearestTimestamp(rawOffset, recordTimestamps);
       if (snapped > 0) {
         markers.push({ timeOffsetSeconds: snapped, label: `Lap ${index + 1}` });
@@ -527,17 +530,31 @@ export async function parseFitFile(file: File): Promise<FitActivity> {
 
   const durationSeconds = getDurationSeconds(parsedFit, baselineMs, records);
 
-  // Some apps (e.g. Strava Android) append a stray sentinel record with a timestamp
-  // decades in the future. Drop any record whose offset exceeds the declared duration
-  // by more than 30 seconds so it can't corrupt the chart domain or marker positions.
-  const trimmedRecords = durationSeconds > 0
+  // Use total_elapsed_time as the trim boundary — it is the wall-clock end of the
+  // session and the exact point after which no legitimate records exist. This correctly
+  // includes post-stop cooldown records (e.g. Garmin continues recording after STOP)
+  // while still excluding stray far-future timestamps (e.g. Strava Android year-2085
+  // sentinel). Falls back to durationSeconds + 30 for files without total_elapsed_time.
+  const totalElapsedTime = typeof sessions[0]?.total_elapsed_time === 'number'
+    ? sessions[0].total_elapsed_time
+    : null;
+  const trimCutoff = durationSeconds > 0
+    ? Math.round(totalElapsedTime ?? durationSeconds + 30)
+    : null;
+  const trimmedRecords = trimCutoff !== null
     ? records.filter((r) => {
         if (!r.timestamp) return true;
-        return toOffsetSeconds(r.timestamp, baselineMs) <= durationSeconds + 30;
+        return toOffsetSeconds(r.timestamp, baselineMs) <= trimCutoff;
       })
     : records;
 
-  const recordTimestamps = buildRecordTimestamps(trimmedRecords, baselineMs);
+  // recordTimestamps is used for marker snapping and must stay within [0, durationSeconds].
+  // trimmedRecords may extend to total_elapsed_time (post-stop cooldown) — those extra records
+  // are intentionally excluded here so snap targets never land past the Finish marker.
+  const allRecordTimestamps = buildRecordTimestamps(trimmedRecords, baselineMs);
+  const recordTimestamps = durationSeconds > 0
+    ? allRecordTimestamps.filter((t) => t <= durationSeconds)
+    : allRecordTimestamps;
 
   const allSeries = buildSeries(trimmedRecords, baselineMs, activityType);
 
