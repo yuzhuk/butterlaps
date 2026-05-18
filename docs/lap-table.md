@@ -26,10 +26,11 @@ Total / Avg row — pace is derived from total distance ÷ total time, not a sim
 ## Behaviour
 
 - updates live as laps are merged
-- clicking a data row zooms the chart to that lap
+- **hovering** a data row highlights that lap in the chart: two `var(--plot-bg)` veils at 0.78 opacity cover the chart area outside the hovered lap's time range, dimming all series (lines and elevation area). Veils are rendered in the `ChartZoomOverlay` SVG so they sit on top of all chart series.
+- **clicking** a data row zooms the chart to that lap
 - clicking the footer row resets zoom
 - rows are tinted green (active) or red (recovery) based on whether the lap's average power is above or below the session average power; no tint when power data is absent
 
 ## Hint
 
-A `click a lap to zoom in chart` tip is displayed below the table in the same style as the chart footer hint.
+A single hint line is displayed below the table: `hover to highlight in chart · click to zoom in chart`

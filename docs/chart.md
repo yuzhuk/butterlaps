@@ -103,9 +103,9 @@ A compact pill toggle sits at the right end of the series chip row, below a `TIM
 
 ---
 
-## Lap Markers
+## Lap Markers (Splits)
 
-- thin vertical reference lines at each current marker position
+- thin vertical reference lines at each current split position
 - update live as laps are merged
 
 ---
@@ -131,3 +131,17 @@ A compact pill toggle sits at the right end of the series chip row, below a `TIM
 - zoom boundaries snap to whole seconds; drag endpoints also apply snap-pull toward nearest data point
 - clicking a lap row in the table zooms the chart to that lap
 - clicking the Total/Avg footer row resets the zoom
+
+## Lap Highlight (from table hover)
+
+When a lap row in the table is hovered, the chart dims everything outside that lap's time range. Two `var(--plot-bg)` rectangles at 0.78 opacity are rendered in the `ChartZoomOverlay` SVG — above all Recharts series — covering the area to the left of the lap start and to the right of the lap end. The effect is cleared when the pointer leaves the row.
+
+Highlight and zoom are independent: both can be active simultaneously.
+
+---
+
+## Footer Hint
+
+`drag to zoom · double-click to add split · drag split to adjust · drop split on neighbour to delete`
+
+User-facing controls use the term **split** (not "marker", which is the internal data model term).

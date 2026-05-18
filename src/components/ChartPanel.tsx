@@ -102,6 +102,7 @@ interface Props {
   activity: FitActivity;
   markers: Marker[];
   zoom: { start: number; end: number } | null;
+  highlightInterval: { start: number; end: number } | null;
   onZoom: (start: number, end: number) => void;
   onZoomReset: () => void;
   onAddMarker: (t: number) => void;
@@ -109,7 +110,7 @@ interface Props {
   onMergeMarker: (draggedTime: number) => void;
 }
 
-export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAddMarker, onMoveMarker, onMergeMarker }: Props) {
+export function ChartPanel({ activity, markers, zoom, highlightInterval, onZoom, onZoomReset, onAddMarker, onMoveMarker, onMergeMarker }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [lapMode, setLapMode] = useState(() => localStorage.getItem(LAP_MODE_KEY) === '1');
@@ -341,12 +342,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
               tickLine={{ stroke: '#e0ddd3' }}
             />
 
-            {zoom && displayDomain[0] < zoom.start && (
-              <ReferenceArea x1={displayDomain[0]} x2={zoom.start} yAxisId="elev" fill="rgb(203,213,225)" fillOpacity={0.55} strokeOpacity={0} />
-            )}
-            {zoom && zoom.end < displayDomain[1] && (
-              <ReferenceArea x1={zoom.end} x2={displayDomain[1]} yAxisId="elev" fill="rgb(203,213,225)" fillOpacity={0.55} strokeOpacity={0} />
-            )}
+
 
             <YAxis yAxisId="elev" hide domain={['dataMin - 10', 'dataMax + 30']} />
             <YAxis yAxisId="pace" hide reversed domain={paceDomain} allowDataOverflow />
@@ -401,10 +397,12 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
             marginLeft={CHART_MARGIN.left}
             marginTop={CHART_MARGIN.top}
             domain={displayDomain}
+            zoom={zoom}
             onZoom={onZoom}
             onZoomReset={onZoomReset}
             hoverSeries={hoverSeriesData}
             recordTimestamps={activity.recordTimestamps}
+            highlightInterval={highlightInterval}
             markerTimes={markers.map((m) => m.timeOffsetSeconds)}
             draggableMarkerTimes={(() => {
               const startT = markers[0]?.timeOffsetSeconds ?? -1;
@@ -421,7 +419,7 @@ export function ChartPanel({ activity, markers, zoom, onZoom, onZoomReset, onAdd
         )}
       </div>
       <p className="plot-foot">
-        drag to zoom · double-click to add marker · drag marker to adjust · drop on neighbour to delete
+        drag to zoom · double-click to add split · drag split to adjust · drop split on neighbour to delete
       </p>
     </div>
   );

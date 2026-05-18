@@ -149,9 +149,10 @@ interface Props {
   onSelectLap: (start: number, end: number) => void;
   onClearZoom: () => void;
   onReset: () => void;
+  onHoverLap: (interval: { start: number; end: number } | null) => void;
 }
 
-export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZoom, onReset }: Props) {
+export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZoom, onReset, onHoverLap }: Props) {
   const lapRows = buildLapRows(activity, markers);
   const summaryRow = getSummaryRow(activity, markers);
   const tableSeries = getTableSeries(activity);
@@ -195,6 +196,8 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
                 key={row.lapNumber}
                 className={getPowerClass(row.values.find((v) => v.name === 'Power')?.value ?? null, avgPower) || undefined}
                 onClick={() => onSelectLap(row.startOffsetSeconds, row.startOffsetSeconds + row.durationSeconds)}
+                onMouseEnter={() => onHoverLap({ start: row.startOffsetSeconds, end: row.startOffsetSeconds + row.durationSeconds })}
+                onMouseLeave={() => onHoverLap(null)}
               >
                 <td>
                   <span className="lap-num-text">L{String(row.lapNumber).padStart(2, '0')}</span>
@@ -246,7 +249,7 @@ export function LapTable({ activity, markers, onMergeLap, onSelectLap, onClearZo
           )}
         </table>
       </div>
-      <p className="plot-foot">click a lap to zoom in chart</p>
+      <p className="plot-foot">hover to highlight in chart · click to zoom in chart</p>
     </>
   );
 }

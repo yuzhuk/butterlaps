@@ -13,23 +13,25 @@ A small square button straddles the row boundary between consecutive laps, posit
 
 ## Chart Editing
 
+User-facing copy uses **split** for the vertical boundary lines. The internal data model calls them markers.
+
 ### Drag to reposition
 
-Drag a lap marker horizontally on the chart to move it. The marker snaps to the nearest data point on release.
+Drag a split horizontally on the chart to move it. The split snaps to the nearest data point on release.
 
-- dragging marker turns orange
+- dragging split turns orange
 - when dragged within merge threshold of a neighbour, turns red to signal a pending delete
 
 ### Double-click to add
 
-Double-click anywhere on the chart to insert a new marker at that position.
+Double-click anywhere on the chart to insert a new split at that position.
 
 ### Drag onto neighbour to delete
 
-Drag a marker close to an adjacent marker to delete it.
+Drag a split close to an adjacent split to delete it.
 
-- visual feedback (red marker) appears when within the merge threshold
-- marker is deleted on pointer release
+- visual feedback (red split line) appears when within the merge threshold
+- split is deleted on pointer release
 - no confirmation dialog
 
 ### Snapping

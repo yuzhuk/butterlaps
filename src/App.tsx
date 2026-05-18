@@ -124,6 +124,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState<{ start: number; end: number } | null>(null);
+  const [hoveredLapInterval, setHoveredLapInterval] = useState<{ start: number; end: number } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [exportName, setExportName] = useState('');
   const [theme, setTheme] = useState<ThemeSetting>(() => {
@@ -554,6 +555,7 @@ function App() {
                   onSelectLap={(start, end) => setZoom({ start, end })}
                   onClearZoom={() => setZoom(null)}
                   onReset={resetMarkers}
+                  onHoverLap={setHoveredLapInterval}
                 />
               </div>
 
@@ -563,6 +565,7 @@ function App() {
                   activity={activity}
                   markers={markers}
                   zoom={zoom}
+                  highlightInterval={hoveredLapInterval}
                   onZoom={(start, end) => setZoom({ start, end })}
                   onZoomReset={() => setZoom(null)}
                   onAddMarker={addMarker}

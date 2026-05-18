@@ -21,10 +21,12 @@ interface Props {
   marginLeft: number;
   marginTop: number;
   domain: [number, number];
+  zoom: { start: number; end: number } | null;
   onZoom: (start: number, end: number) => void;
   onZoomReset: () => void;
   hoverSeries: HoverSeriesInfo[];
   recordTimestamps: number[];
+  highlightInterval: { start: number; end: number } | null;
   markerTimes: number[];
   draggableMarkerTimes: number[];
   onAddMarker: (t: number) => void;
@@ -208,10 +210,12 @@ export function ChartZoomOverlay({
   marginLeft,
   marginTop,
   domain,
+  zoom,
   onZoom,
   onZoomReset,
   hoverSeries,
   recordTimestamps,
+  highlightInterval,
   markerTimes,
   draggableMarkerTimes,
   onAddMarker,
@@ -493,6 +497,27 @@ export function ChartZoomOverlay({
       onMouseLeave={() => { isHoveringRef.current = false; setHoverPos(null); setHoveredMarkerTime(null); }}
     >
       <g transform={`translate(${marginLeft}, ${marginTop})`}>
+
+        {/* Lap highlight veils — behind zoom veils so zoom veil appearance is unaffected */}
+        {highlightInterval && (() => {
+          const leftW = Math.max(0, toPx(highlightInterval.start));
+          const rightX = Math.min(plotWidth, toPx(highlightInterval.end));
+          const rightW = plotWidth - rightX;
+          return (
+            <>
+              {leftW > 0 && <rect x={0} y={0} width={leftW} height={plotHeight} style={{ fill: 'var(--plot-bg)', fillOpacity: 0.78 }} />}
+              {rightW > 0 && <rect x={rightX} y={0} width={rightW} height={plotHeight} style={{ fill: 'var(--plot-bg)', fillOpacity: 0.78 }} />}
+            </>
+          );
+        })()}
+
+        {/* Zoom veils — on top of highlight veils */}
+        {zoom && toPx(zoom.start) > 0 && (
+          <rect x={0} y={0} width={toPx(zoom.start)} height={plotHeight} fill="rgb(203,213,225)" fillOpacity={0.55} />
+        )}
+        {zoom && toPx(zoom.end) < plotWidth && (
+          <rect x={toPx(zoom.end)} y={0} width={plotWidth - toPx(zoom.end)} height={plotHeight} fill="rgb(203,213,225)" fillOpacity={0.55} />
+        )}
 
         {/* Static markers */}
         {markerTimes.map((t) => {
