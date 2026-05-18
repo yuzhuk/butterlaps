@@ -61,6 +61,7 @@ Distance is parsed for cursor tooltip math but is not a plotted chart series. Th
 ## Workflow rules
 
 - **Commit before changing**: before making any code changes in response to a prompt, run `git status` and if there are uncommitted changes, commit them first. This ensures every prompt starts from a clean rollback point.
+- **Screenshot**: take screenshot(s) of existing UI before updating anything UI-related. Timestamp the name(s) and put it into screenshots folder.
 - **Flag before stopping**: if a requested change would require touching >3 files, has unclear requirements, or conflicts with existing architecture, implement what's clearly scoped and add a TODO comment + one-line explanation for the ambiguous part. Only halt and ask if the task is genuinely contradictory or destructive (e.g. "delete the database").
 
 ## Engineering rules
@@ -84,6 +85,8 @@ Search for `// TESTING ONLY` and disable or replace each occurrence before shipp
 ## Version auto-increment
 
 `npm run build` runs `node increment-build.js` before `tsc + vite build`. The fourth segment of the version in `package.json` is incremented automatically. Do not manually bump the build number.
+
+Keep [`docs/changelog.md`](docs/changelog.md) updated as notable changes accumulate.
 
 ## Testing notes
 
