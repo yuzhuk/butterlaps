@@ -562,7 +562,10 @@ export function ChartZoomOverlay({
           const elevationLabel = labels.find((l) => l.name === 'Elevation') ?? null;
           const distanceLabel = labels.find((l) => l.name === 'Distance') ?? null;
           const distanceValues = hoverSeries.find((s) => s.name === 'Distance')?.values ?? [];
-          const { startTime, startDist } = lapOffsetAt(dragCurrentTime, lapMode, markerTimes, distanceValues);
+          // Exclude the dragged marker's original position so lapOffsetAt finds the
+          // actual previous marker, not the position we're dragging away from.
+          const markersForDrag = markerTimes.filter((t) => t !== markerDrag.originalTime);
+          const { startTime, startDist } = lapOffsetAt(dragCurrentTime, lapMode, markersForDrag, distanceValues);
           const displayDist = distanceLabel ? distanceLabel.value - startDist : null;
           const header = fmtTime(dragCurrentTime - startTime) + (displayDist != null ? ` · ${fmtDistance(displayDist)}` : '');
           const stroke = dragIsMerging ? '#b8321f' : '#b85a18';
