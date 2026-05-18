@@ -48,8 +48,10 @@ async function roundTrip(name: string) {
 // ---- rejection tests ----
 
 describe('sport filter', () => {
-  skipIfMissing('garmin-fenix5-walk.fit')('rejects walking', async () => {
-    await expect(parse('garmin-fenix5-walk.fit')).rejects.toThrow(/not supported/i);
+  skipIfMissing('garmin-fenix5-walk.fit')('accepts walking', async () => {
+    const a = await parse('garmin-fenix5-walk.fit');
+    expect(a.summary.activityType).toBe('walking');
+    expect(a.summary.durationSeconds).toBeGreaterThan(0);
   });
 
   skipIfMissing('skiing.fit')('rejects alpine skiing', async () => {

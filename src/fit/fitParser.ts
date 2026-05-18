@@ -226,6 +226,150 @@ const APPLE_WATCH_MODELS: Record<string, string> = {
   'Watch7,20': 'Apple Watch Series 11',
 };
 
+// fit-file-parser returns Garmin's `product` field as a raw uint16 — the library's
+// garmin_product enum table (FIT.types.garmin_product) only covers devices up to ~2018.
+// This table covers everything seen in our test corpus plus the full modern lineup.
+const GARMIN_PRODUCT_NAMES: Record<number, string> = {
+  // Forerunner series
+  473:  'Forerunner 301',
+  717:  'Forerunner 405',
+  782:  'Forerunner 50',
+  987:  'Forerunner 405cx',
+  988:  'Forerunner 60',
+  1018: 'Forerunner 310XT',
+  1124: 'Forerunner 110',
+  1328: 'Forerunner 910XT',
+  1345: 'Forerunner 610',
+  1436: 'Forerunner 70',
+  1482: 'Forerunner 10',
+  1499: 'Swim',
+  1623: 'Forerunner 620',
+  1632: 'Forerunner 220',
+  1765: 'Forerunner 920XT',
+  1903: 'Forerunner 15',
+  2148: 'Forerunner 25',
+  2153: 'Forerunner 225',
+  2156: 'Forerunner 630',
+  2157: 'Forerunner 230',
+  2158: 'Forerunner 735XT',
+  2431: 'Forerunner 235',
+  2691: 'Forerunner 935',
+  2888: 'Forerunner 645 Music',
+  2909: 'Forerunner 645',
+  3075: 'Forerunner 245 Music',
+  3076: 'Forerunner 245',
+  3088: 'Forerunner 45',
+  3145: 'Forerunner 945',
+  3321: 'Forerunner 55',
+  3484: 'Forerunner 45S',
+  3589: 'Forerunner 745',
+  3652: 'Forerunner 945 LTE',
+  3757: 'Forerunner 55',
+  4024: 'Forerunner 955',
+  4124: 'Forerunner 265',
+  4125: 'Forerunner 265S',
+  4315: 'Forerunner 965',
+  4565: 'Forerunner 970',
+  // Fenix series
+  1551: 'Fenix',
+  1967: 'Fenix 2',
+  2050: 'Fenix 3',
+  2413: 'Fenix 3 HR',
+  2432: 'Fenix 3 Chronos',
+  2544: 'Fenix 5S',
+  2604: 'Fenix 5X',
+  2697: 'Fenix 5',
+  3046: 'Fenix 5X Plus',
+  3049: 'Fenix 5S Plus',
+  3057: 'Fenix 5 Plus',
+  3289: 'Fenix 6S',
+  3290: 'Fenix 6',
+  3291: 'Fenix 6X',
+  3523: 'Fenix 6S Pro',
+  3524: 'Fenix 6 Pro',
+  3525: 'Fenix 6X Pro',
+  3905: 'Fenix 7S',
+  3906: 'Fenix 7',
+  3907: 'Fenix 7X',
+  4394: 'Fenix 8 47mm',
+  4395: 'Fenix 8 Solar',
+  // Epix series
+  1988: 'Epix',
+  4171: 'Epix Gen 2',
+  4313: 'Epix Gen 2 Pro 47',
+  4314: 'Epix Gen 2 Pro 51',
+  // Enduro series
+  3638: 'Enduro',
+  3992: 'Enduro 2',
+  4396: 'Enduro 3',
+  // Instinct series
+  3141: 'Instinct',
+  3798: 'Instinct Solar',
+  3836: 'Instinct 2 Solar',
+  4062: 'Instinct 2',
+  4067: 'Instinct 2X',
+  4462: 'Instinct 3',
+  // Descent / Tactix / D2 / MARQ
+  2859: 'Descent',
+  2262: 'D2 Bravo',
+  2547: 'D2 Bravo Titanium',
+  3428: 'MARQ',
+  3784: 'Descent Mk2',
+  3785: 'Descent G1',
+  4105: 'Descent Mk3i',
+  4444: 'Tactix 7',
+  // Vivoactive / Venu / Vivo
+  1837: 'Vivofit',
+  1907: 'Vivoactive',
+  1956: 'Vivosmart',
+  2337: 'Vivoactive HR',
+  2348: 'Vivosmart HR',
+  2368: 'Vivomove',
+  2406: 'Vivofit 3',
+  2606: 'Vivofit Jr',
+  3085: 'Vivoactive 4',
+  3086: 'Vivoactive 4S',
+  3313: 'Venu',
+  3500: 'Venu SQ',
+  3616: 'Lily',
+  3639: 'Venu 2',
+  3641: 'Venu 2S',
+  3862: 'Venu 2 Plus',
+  4258: 'Venu 3',
+  4260: 'Venu 3S',
+  // Edge (cycling computers — included for completeness)
+  1036: 'Edge 500',
+  1169: 'Edge 800',
+  1325: 'Edge 200',
+  1561: 'Edge 510',
+  1567: 'Edge 810',
+  1836: 'Edge 1000',
+  2067: 'Edge 520',
+  2238: 'Edge 20',
+  2530: 'Edge 820',
+  2531: 'Edge Explore 820',
+  3067: 'Edge 130',
+  3139: 'Edge 530',
+  3140: 'Edge 830',
+  3176: 'Edge 1030 Plus',
+  3210: 'Edge 130 Plus',
+  3840: 'Edge 1040',
+  3843: 'Edge 540',
+  3845: 'Edge 840',
+  4228: 'Edge 1050',
+  4655: 'Edge 840 Solar',
+  // Action cameras / misc
+  1735: 'VIRB Elite',
+  2134: 'VIRB X',
+  2172: 'VIRB XE',
+  2417: 'VIRB Ultra 30',
+  2512: 'Oregon 7xx',
+};
+
+function garminProductName(productId: number): string | undefined {
+  return GARMIN_PRODUCT_NAMES[productId];
+}
+
 function getDeviceInfo(parsedFit: any): { device?: string; deviceApp?: string } {
   const infos: Array<any> = parsedFit.device_infos ?? [];
   const primary = infos.find((d) => d.device_index === 0) ?? infos.find((d) => d.manufacturer);
@@ -244,9 +388,21 @@ function getDeviceInfo(parsedFit: any): { device?: string; deviceApp?: string } 
 
   if (!primary.manufacturer) return {};
   const mfr = String(primary.manufacturer).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  const product = primary.product_name ?? primary.garmin_product ?? primary.product;
-  if (!product || typeof product === 'number') return { device: mfr };
-  const productName = String(product).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Garmin devices: product_name and garmin_product are absent from fit-file-parser output;
+  // product is always a raw uint16. Look it up in our table.
+  if (primary.manufacturer === 'garmin' && typeof primary.product === 'number') {
+    const name = garminProductName(primary.product);
+    return { device: name ? `Garmin ${name}` : mfr };
+  }
+
+  // Non-Garmin manufacturers: use product_name when present (preserve its original casing —
+  // "COROS PACE 2", "ELEMNT" etc. come from the device itself). Avoid doubling the brand
+  // if product_name already leads with it (e.g. "COROS PACE 2" from manufacturer "coros").
+  const productName: string | undefined = primary.product_name;
+  if (!productName) return { device: mfr };
+  const brand = mfr.split(' ')[0].toLowerCase();
+  if (productName.toLowerCase().startsWith(brand)) return { device: productName };
   return { device: `${mfr} ${productName}` };
 }
 
